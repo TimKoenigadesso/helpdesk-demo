@@ -1,0 +1,205 @@
+stages:
+  - build
+  - implement
+  - test
+  - fix
+  - finalize
+  - reset
+
+variables:
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_TLS_CERTDIR: "/certs"
+
+# ── BUILD ──────────────────────────────────────────────────────────────────
+
+build:
+  stage: build
+  image: docker:24
+  services: [docker:24-dind]
+  rules:
+    - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA ./backend
+    - docker build -t $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA ./frontend
+    - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA
+
+# ── IMPLEMENT ─────────────────────────────────────────────────────────────
+
+claude-implement:
+  stage: implement
+  image: node:20-slim
+  rules:
+    - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git curl python3 python3-pip
+    - npm install -g @anthropic-ai/claude-code@latest
+    - git config user.email "claude-code@adesso.de"
+    - git config user.name "Claude Code Agent"
+    - git checkout -b "feature/$JIRA_TICKET_ID" 2>/dev/null || git checkout "feature/$JIRA_TICKET_ID"
+  script:
+    - |
+      TICKET_CONTENT=$(curl -sf \
+        -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+        -H "Accept: application/json" \
+        "$JIRA_BASE_URL/rest/api/3/issue/$JIRA_TICKET_ID?fields=summary,description" \
+        || echo '{"error":"Jira nicht erreichbar"}')
+    - |
+      claude --dangerouslySkipPermissions \
+        --allowedTools "Read,Write,Edit,Bash,Glob,Grep" \
+        --max-turns 80 \
+        -p "Du bist Claude Code in einer GitLab CI Pipeline. Implementiere das folgende Jira Ticket vollständig.
+
+      JIRA TICKET ($JIRA_TICKET_ID):
+      $(echo $TICKET_CONTENT)
+
+      CODEBASE:
+      - Backend: FastAPI (Python) in /backend/
+      - Frontend: React + Vite in /frontend/src/
+      - Datenbank: SQLite via /backend/database.py (get_conn())
+      - Tests: /backend/tests/test_api.py, /frontend/tests/helpdesk.spec.ts
+
+      AUFGABEN (in dieser Reihenfolge):
+      1. Lies relevante Dateien (backend/main.py, backend/models.py, backend/database.py, frontend/src/App.tsx)
+      2. Implementiere das Feature (Backend-Route + Frontend-Komponente)
+      3. Ergänze pytest Tests in backend/tests/test_api.py
+      4. Ergänze Playwright Tests in frontend/tests/helpdesk.spec.ts
+      5. Committe alles: git add -A && git commit -m 'feat($JIRA_TICKET_ID): implementiere feature'
+
+      REGELN: Keine Secrets hardcoden. Bestehende Konventionen einhalten."
+    - git push origin "feature/$JIRA_TICKET_ID" --set-upstream --force-with-lease
+
+# ── TEST ──────────────────────────────────────────────────────────────────
+
+test-unit:
+  stage: test
+  image: python:3.12-slim
+  rules:
+    - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
+  needs: [claude-implement]
+  before_script:
+    - git fetch origin
+    - git checkout "feature/$JIRA_TICKET_ID"
+    - pip install -q fastapi uvicorn pydantic pytest httpx
+  script:
+    - cd backend && python -m pytest tests/ -v --tb=short
+  artifacts:
+    when: always
+    paths: [backend/]
+    expire_in: 1 hour
+
+test-e2e:
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.44.0-jammy
+  rules:
+    - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
+  needs: [claude-implement]
+  variables:
+    FRONTEND_URL: http://localhost:5173
+  before_script:
+    - git fetch origin
+    - git checkout "feature/$JIRA_TICKET_ID"
+    - cd frontend && npm ci
+    - npx playwright install --with-deps chromium
+  script:
+    - FRONTEND_URL=$FRONTEND_URL npx playwright test --reporter=list
+  artifacts:
+    when: always
+    paths: [playwright-report/]
+    expire_in: 1 hour
+
+# ── FIX LOOP ──────────────────────────────────────────────────────────────
+
+fix-iteration:
+  stage: fix
+  image: node:20-slim
+  rules:
+    - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
+      when: on_failure
+  variables:
+    FIX_ITERATION: ${FIX_ITERATION:-1}
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git curl python3 python3-pip
+    - npm install -g @anthropic-ai/claude-code@latest
+    - pip install -q fastapi uvicorn pydantic pytest httpx
+    - git config user.email "claude-code@adesso.de"
+    - git config user.name "Claude Code Bug Fixer"
+    - git fetch origin
+    - git checkout "feature/$JIRA_TICKET_ID"
+  script:
+    - |
+      if [ "${FIX_ITERATION:-1}" -gt "3" ]; then
+        echo "Maximale Iterationen erreicht - eskaliere"
+        curl -sf -X POST \
+          -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+          -H "Content-Type: application/json" \
+          "$JIRA_BASE_URL/rest/api/3/issue/$JIRA_TICKET_ID/comment" \
+          -d "{\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Pipeline nach 3 Iterationen fehlgeschlagen. Pipeline: $CI_PIPELINE_URL\"}]}]}}" || true
+        exit 1
+      fi
+    - cd backend && python -m pytest tests/ -v --tb=long 2>&1 | tee /tmp/test-output.txt || true
+    - |
+      claude --dangerouslySkipPermissions \
+        --allowedTools "Read,Write,Edit,Bash,Glob,Grep" \
+        --max-turns 30 \
+        -p "Du bist Claude Code Bug Fixer (Iteration ${FIX_ITERATION:-1}/3).
+
+      Folgende Tests schlagen fehl:
+      $(cat /tmp/test-output.txt | tail -80)
+
+      Analysiere die Fehler und behebe sie. Ändere NICHT die Tests.
+      Committe: git add -A && git commit -m 'fix($JIRA_TICKET_ID): iteration-${FIX_ITERATION:-1} bug fixes'"
+    - git push origin "feature/$JIRA_TICKET_ID" --force-with-lease
+    - cd backend && python -m pytest tests/ -v
+
+# ── FINALIZE ──────────────────────────────────────────────────────────────
+
+create-merge-request:
+  stage: finalize
+  image: alpine/curl
+  rules:
+    - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
+  needs:
+    - job: test-unit
+    - job: test-e2e
+  script:
+    - |
+      MR_RESPONSE=$(curl -sf -X POST \
+        -H "PRIVATE-TOKEN: $GITLAB_ACCESS_TOKEN" \
+        -H "Content-Type: application/json" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests" \
+        -d "{
+          \"source_branch\": \"feature/$JIRA_TICKET_ID\",
+          \"target_branch\": \"main\",
+          \"title\": \"[$JIRA_TICKET_ID] Automatisch implementiert durch Claude Code\",
+          \"description\": \"## Automatisch generiert\\n\\n**Jira Ticket:** $JIRA_BASE_URL/browse/$JIRA_TICKET_ID\\n\\n**Pipeline:** $CI_PIPELINE_URL\\n\\nAlle Unit Tests und Playwright Tests erfolgreich.\",
+          \"labels\": \"agentic-delivery\"
+        }")
+      MR_URL=$(echo "$MR_RESPONSE" | grep -o '"web_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+      echo "MR_URL=$MR_URL" > mr-url.env
+      echo "MR erstellt: $MR_URL"
+    - |
+      MR_URL=$(cat mr-url.env | cut -d= -f2)
+      curl -sf -X POST \
+        -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+        -H "Content-Type: application/json" \
+        "$JIRA_BASE_URL/rest/api/3/issue/$JIRA_TICKET_ID/comment" \
+        -d "{\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Pull Request erstellt: $MR_URL\"}]}]}}" || true
+  artifacts:
+    reports:
+      dotenv: mr-url.env
+
+# ── RESET ─────────────────────────────────────────────────────────────────
+
+reset-demo:
+  stage: reset
+  image: alpine/git
+  rules:
+    - if: '$PIPELINE_TYPE == "reset-demo"'
+  before_script:
+    - apk add --no-cache curl python3
+    - git config user.email "claude-code@adesso.de"
+    - git config user.name "Demo Reset Bot"
+  script:
+    - bash scripts/reset-demo.sh
