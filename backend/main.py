@@ -68,4 +68,7 @@ def update_ticket(ticket_id: int, update: TicketUpdate):
 @app.delete("/tickets/{ticket_id}", status_code=204)
 def delete_ticket(ticket_id: int):
     with get_conn() as conn:
+        row = conn.execute("SELECT id FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Ticket not found")
         conn.execute("DELETE FROM tickets WHERE id = ?", (ticket_id,))
