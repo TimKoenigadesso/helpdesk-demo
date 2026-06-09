@@ -39,13 +39,11 @@ claude-implement:
     - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
   before_script:
     - apt-get update -qq && apt-get install -y -qq git curl python3 python3-pip
-    - npm install -g @anthropic-ai/claude-code@latest
+    - pip install -q "anthropic[vertex]>=0.40.0"
     - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/gcp-key.json
-    - useradd -m -s /bin/bash agent 2>/dev/null || true
-    - chmod a+r /tmp/gcp-key.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
     - git config user.email "claude-code@adesso.de"
     - git config user.name "Claude Code Agent"
-    - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - git checkout -b "feature/$JIRA_TICKET_ID" 2>/dev/null || git checkout "feature/$JIRA_TICKET_ID"
   script:
     # Jira Ticket laden
@@ -77,49 +75,34 @@ claude-implement:
       print('\n\n'.join(out)[:4000])
       " 2>/dev/null || echo "Parse-Fehler")
       fi
-    # Claude Code als Nicht-Root ausfuehren (root wird von --dangerously-skip-permissions geblockt)
+    # Python-Agent via Vertex AI ausfuehren (kein Anthropic API Key noetig)
     - |
       cat > /tmp/claude-prompt.txt << PROMPTEOF
-      Du bist Claude Code in einer GitLab CI Pipeline. Implementiere das folgende Jira Ticket vollstaendig.
+Du bist ein erfahrener Softwareentwickler in einer GitLab CI Pipeline. Implementiere das folgende Jira Ticket vollstaendig.
 
-      JIRA TICKET (${JIRA_TICKET_ID}):
-      ${TICKET_CONTENT}
+JIRA TICKET (${JIRA_TICKET_ID}):
+${TICKET_CONTENT}
 
-      CONFLUENCE-KONTEXT (Architektur-Dokumentation):
-      ${CONF_CONTEXT}
+CONFLUENCE-KONTEXT (Architektur-Dokumentation):
+${CONF_CONTEXT}
 
-      CODEBASE:
-      - Backend: FastAPI (Python) in /backend/
-      - Frontend: React + Vite + Tailwind in /frontend/src/
-      - Datenbank: SQLite via /backend/database.py (get_conn())
-      - Modelle: /backend/models.py (VALID_PRIORITIES, VALID_CATEGORIES fuer Validierung)
-      - Tests: /backend/tests/test_api.py, /frontend/tests/helpdesk.spec.ts
+CODEBASE:
+- Backend: FastAPI (Python) in ./backend/
+- Frontend: React + Vite + Tailwind in ./frontend/src/
+- Datenbank: SQLite via ./backend/database.py (get_conn())
+- Modelle: ./backend/models.py (VALID_PRIORITIES, VALID_CATEGORIES fuer Validierung)
+- Tests: ./backend/tests/test_api.py, ./frontend/tests/helpdesk.spec.ts
 
-      AUFGABEN (in dieser Reihenfolge):
-      1. Lies relevante Dateien (backend/main.py, backend/models.py, backend/database.py, frontend/src/App.tsx)
-      2. Implementiere das Feature (Backend-Route + Frontend-Komponente mit Tailwind-Klassen)
-      3. Ergaenze pytest Tests in backend/tests/test_api.py
-      4. Ergaenze Playwright Tests in frontend/tests/helpdesk.spec.ts (data-testid Attribute nutzen)
-      5. Committe alles: git add -A && git commit -m 'feat(${JIRA_TICKET_ID}): implementiere feature'
+AUFGABEN (in dieser Reihenfolge):
+1. Lies relevante Dateien (backend/main.py, backend/models.py, backend/database.py, frontend/src/App.tsx)
+2. Implementiere das Feature (Backend-Route + Frontend-Komponente mit Tailwind-Klassen)
+3. Ergaenze pytest Tests in backend/tests/test_api.py
+4. Ergaenze Playwright Tests in frontend/tests/helpdesk.spec.ts (data-testid Attribute nutzen)
+5. Committe: Bash("git add -A && git commit -m 'feat(${JIRA_TICKET_ID}): implementiere feature'")
 
-      REGELN: Keine Secrets hardcoden. Bestehende Konventionen einhalten. Tailwind fuer Styling nutzen.
-      PROMPTEOF
-      chmod a+r /tmp/claude-prompt.txt
-      chown -R agent:agent "${CI_PROJECT_DIR}"
-      su agent -s /bin/bash -c "
-        export HOME=/home/agent
-        export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH
-        export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
-        export ANTHROPIC_VERTEX_PROJECT_ID='${ANTHROPIC_VERTEX_PROJECT_ID}'
-        export CLOUD_ML_REGION='${CLOUD_ML_REGION}'
-        cd '${CI_PROJECT_DIR}'
-        git config user.email 'claude-code@adesso.de'
-        git config user.name 'Claude Code Agent'
-        claude --dangerously-skip-permissions \
-          --allowedTools 'Read,Write,Edit,Bash,Glob,Grep' \
-          --max-turns 80 \
-          -p \"\$(cat /tmp/claude-prompt.txt)\"
-      "
+REGELN: Keine Secrets hardcoden. Bestehende Konventionen einhalten. Tailwind fuer Styling nutzen.
+PROMPTEOF
+      python3 scripts/claude-agent.py /tmp/claude-prompt.txt 80
     - git push origin "feature/$JIRA_TICKET_ID" --set-upstream --force-with-lease
 
 # ── TEST ──────────────────────────────────────────────────────────────────
@@ -189,14 +172,11 @@ fix-iteration:
     FIX_ITERATION: "1"
   before_script:
     - apt-get update -qq && apt-get install -y -qq git curl python3 python3-pip
-    - npm install -g @anthropic-ai/claude-code@latest
-    - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/gcp-key.json
-    - useradd -m -s /bin/bash agent 2>/dev/null || true
-    - chmod a+r /tmp/gcp-key.json
     - pip install -q fastapi uvicorn pydantic pytest httpx "anthropic[vertex]>=0.40.0"
+    - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/gcp-key.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
     - git config user.email "claude-code@adesso.de"
     - git config user.name "Claude Code Bug Fixer"
-    - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - git fetch origin
     - git checkout "feature/$JIRA_TICKET_ID"
   script:
@@ -212,34 +192,19 @@ fix-iteration:
       fi
     # Testausgabe fuer beide Test-Typen sammeln
     - cd backend && python -m pytest tests/ -v --tb=long 2>&1 | tee /tmp/test-output.txt; cd ..
-    # Bug fixer als Nicht-Root ausfuehren
+    # Bug fixer via Python-Agent (Vertex AI, kein Anthropic API Key)
     - |
       cat > /tmp/fix-prompt.txt << FIXPROMPTEOF
-      Du bist Claude Code Bug Fixer (Iteration ${FIX_ITERATION}/3).
+Du bist ein erfahrener Softwareentwickler und Bug Fixer (Iteration ${FIX_ITERATION}/3).
 
-      Folgende Tests schlagen fehl:
-      $(cat /tmp/test-output.txt | tail -80)
+Folgende Tests schlagen fehl:
+$(cat /tmp/test-output.txt | tail -80)
 
-      Analysiere die Fehler und behebe sie im Produktionscode.
-      Aendere NICHT die Test-Dateien (test_api.py, helpdesk.spec.ts).
-      Committe: git add -A && git commit -m 'fix(${JIRA_TICKET_ID}): iteration-${FIX_ITERATION} bug fixes'
-      FIXPROMPTEOF
-      chmod a+r /tmp/fix-prompt.txt
-      chown -R agent:agent "${CI_PROJECT_DIR}"
-      su agent -s /bin/bash -c "
-        export HOME=/home/agent
-        export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH
-        export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
-        export ANTHROPIC_VERTEX_PROJECT_ID='${ANTHROPIC_VERTEX_PROJECT_ID}'
-        export CLOUD_ML_REGION='${CLOUD_ML_REGION}'
-        cd '${CI_PROJECT_DIR}'
-        git config user.email 'claude-code@adesso.de'
-        git config user.name 'Claude Code Bug Fixer'
-        claude --dangerously-skip-permissions \
-          --allowedTools 'Read,Write,Edit,Bash,Glob,Grep' \
-          --max-turns 30 \
-          -p \"\$(cat /tmp/fix-prompt.txt)\"
-      "
+Analysiere die Fehler und behebe sie im Produktionscode.
+Aendere NICHT die Test-Dateien (test_api.py, helpdesk.spec.ts).
+Committe: Bash("git add -A && git commit -m 'fix(${JIRA_TICKET_ID}): iteration-${FIX_ITERATION} bug fixes'")
+FIXPROMPTEOF
+      python3 scripts/claude-agent.py /tmp/fix-prompt.txt 30
     - git push origin "feature/$JIRA_TICKET_ID" --force-with-lease
     # Verifizierung nach dem Fix
     - cd backend && python -m pytest tests/ -v --tb=short
@@ -256,55 +221,38 @@ create-merge-request:
     - job: test-unit
     - job: test-e2e
   before_script:
-    - apt-get update -qq && apt-get install -y -qq git curl python3
-    - npm install -g @anthropic-ai/claude-code@latest
+    - apt-get update -qq && apt-get install -y -qq git curl python3 python3-pip
+    - pip install -q "anthropic[vertex]>=0.40.0"
     - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/gcp-key.json
-    - useradd -m -s /bin/bash agent 2>/dev/null || true
-    - chmod a+r /tmp/gcp-key.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
     - git config user.email "claude-code@adesso.de"
     - git config user.name "Claude Code Agent"
-    - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - git fetch origin
     - git checkout "feature/$JIRA_TICKET_ID"
   script:
-    # Schritt 1: Feature-Dokumentation als Nicht-Root generieren und committen
+    # Schritt 1: Feature-Dokumentation via Python-Agent generieren und committen
     - |
       cat > /tmp/docs-prompt.txt << DOCSPROMPTEOF
-      Lies den Git-Diff gegenueber main (git diff main...HEAD) und schreibe eine praegnante Feature-Dokumentation nach docs/FEATURE_DOCS.md.
+Lies den Git-Diff gegenueber main (Bash: git diff main...HEAD) und schreibe eine praegnante Feature-Dokumentation nach docs/FEATURE_DOCS.md.
 
-      Struktur:
-      # Feature: [Titel aus Jira ${JIRA_TICKET_ID}]
+Struktur:
+# Feature: [Titel aus Jira ${JIRA_TICKET_ID}]
 
-      ## Was wurde implementiert
-      [3-5 Stichpunkte zu den Aenderungen]
+## Was wurde implementiert
+[3-5 Stichpunkte zu den Aenderungen]
 
-      ## Neue API-Endpunkte
-      [Tabelle: Methode | Pfad | Beschreibung | Parameter]
+## Neue API-Endpunkte
+[Tabelle: Methode | Pfad | Beschreibung | Parameter]
 
-      ## Tests
-      [Welche Tests wurden ergaenzt und was pruefen sie]
+## Tests
+[Welche Tests wurden ergaenzt und was pruefen sie]
 
-      ## Deployment-Hinweise
-      [Eventuelle DB-Migrationen, neue Env-Variablen, Abhaengigkeiten]
+## Deployment-Hinweise
+[Eventuelle DB-Migrationen, neue Env-Variablen, Abhaengigkeiten]
 
-      Committe: git add docs/FEATURE_DOCS.md && git commit -m 'docs(${JIRA_TICKET_ID}): feature documentation' && git push origin feature/${JIRA_TICKET_ID} --force-with-lease
-      DOCSPROMPTEOF
-      chmod a+r /tmp/docs-prompt.txt
-      chown -R agent:agent "${CI_PROJECT_DIR}"
-      su agent -s /bin/bash -c "
-        export HOME=/home/agent
-        export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH
-        export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
-        export ANTHROPIC_VERTEX_PROJECT_ID='${ANTHROPIC_VERTEX_PROJECT_ID}'
-        export CLOUD_ML_REGION='${CLOUD_ML_REGION}'
-        cd '${CI_PROJECT_DIR}'
-        git config user.email 'claude-code@adesso.de'
-        git config user.name 'Claude Code Agent'
-        claude --dangerously-skip-permissions \
-          --allowedTools 'Read,Write,Glob,Bash' \
-          --max-turns 15 \
-          -p \"\$(cat /tmp/docs-prompt.txt)\"
-      "
+Committe: Bash("git add docs/FEATURE_DOCS.md && git commit -m 'docs(${JIRA_TICKET_ID}): feature documentation' && git push origin feature/${JIRA_TICKET_ID} --force-with-lease")
+DOCSPROMPTEOF
+      python3 scripts/claude-agent.py /tmp/docs-prompt.txt 15
     # Schritt 2: Merge Request in GitLab erstellen
     - |
       MR_RESPONSE=$(curl -sf -X POST \
