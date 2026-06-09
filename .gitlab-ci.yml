@@ -40,7 +40,7 @@ claude-implement:
   before_script:
     - apt-get update -qq && apt-get install -y -qq git curl python3 python3-pip
     - npm install -g @anthropic-ai/claude-code@latest
-    - echo "$GCP_SERVICE_ACCOUNT_KEY" > /tmp/gcp-key.json
+    - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/gcp-key.json
     - useradd -m -s /bin/bash agent 2>/dev/null || true
     - chmod a+r /tmp/gcp-key.json
     - git config user.email "claude-code@adesso.de"
@@ -190,7 +190,7 @@ fix-iteration:
   before_script:
     - apt-get update -qq && apt-get install -y -qq git curl python3 python3-pip
     - npm install -g @anthropic-ai/claude-code@latest
-    - echo "$GCP_SERVICE_ACCOUNT_KEY" > /tmp/gcp-key.json
+    - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/gcp-key.json
     - useradd -m -s /bin/bash agent 2>/dev/null || true
     - chmod a+r /tmp/gcp-key.json
     - pip install -q fastapi uvicorn pydantic pytest httpx "anthropic[vertex]>=0.40.0"
@@ -258,7 +258,7 @@ create-merge-request:
   before_script:
     - apt-get update -qq && apt-get install -y -qq git curl python3
     - npm install -g @anthropic-ai/claude-code@latest
-    - echo "$GCP_SERVICE_ACCOUNT_KEY" > /tmp/gcp-key.json
+    - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/gcp-key.json
     - useradd -m -s /bin/bash agent 2>/dev/null || true
     - chmod a+r /tmp/gcp-key.json
     - git config user.email "claude-code@adesso.de"
@@ -381,7 +381,7 @@ deploy:
     - curl -sSL https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=/usr/local
     - export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
     # Authentifizieren
-    - echo "$GCP_SERVICE_ACCOUNT_KEY" > /tmp/gcp-key.json
+    - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/gcp-key.json
     - gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
     - gcloud config set project "$GCP_PROJECT_ID"
     # Docker fuer Artifact Registry konfigurieren
