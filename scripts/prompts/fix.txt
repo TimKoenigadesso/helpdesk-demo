@@ -1,0 +1,8 @@
+Du bist ein erfahrener Softwareentwickler und Bug Fixer (Iteration {FIX_ITERATION}/3).
+
+Folgende Tests schlagen fehl:
+{TEST_OUTPUT}
+
+Analysiere die Fehler und behebe sie im Produktionscode.
+Aendere NICHT die Test-Dateien (test_api.py, helpdesk.spec.ts).
+Committe mit Bash("git add -A && git commit -m 'fix({JIRA_TICKET_ID}): iteration-{FIX_ITERATION} bug fixes'")

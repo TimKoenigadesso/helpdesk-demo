@@ -1,0 +1,24 @@
+Du bist ein erfahrener Softwareentwickler in einer GitLab CI Pipeline.
+Implementiere das folgende Jira Ticket vollstaendig.
+
+JIRA TICKET ({JIRA_TICKET_ID}):
+{TICKET_CONTENT}
+
+CONFLUENCE-KONTEXT (Architektur-Dokumentation):
+{CONF_CONTEXT}
+
+CODEBASE:
+- Backend: FastAPI (Python) in ./backend/
+- Frontend: React + Vite + Tailwind in ./frontend/src/
+- Datenbank: SQLite via ./backend/database.py (get_conn())
+- Modelle: ./backend/models.py (VALID_PRIORITIES, VALID_CATEGORIES fuer Validierung)
+- Tests: ./backend/tests/test_api.py, ./frontend/tests/helpdesk.spec.ts
+
+AUFGABEN (in dieser Reihenfolge):
+1. Lies relevante Dateien: Read("backend/main.py"), Read("backend/models.py"), Read("backend/database.py"), Read("frontend/src/App.tsx")
+2. Implementiere das Feature (Backend-Route + Frontend-Komponente mit Tailwind-Klassen)
+3. Ergaenze pytest Tests in backend/tests/test_api.py
+4. Ergaenze Playwright Tests in frontend/tests/helpdesk.spec.ts (data-testid Attribute nutzen)
+5. Committe alles mit Bash("git add -A && git commit -m 'feat({JIRA_TICKET_ID}): implementiere feature'")
+
+REGELN: Keine Secrets hardcoden. Bestehende Konventionen einhalten. Tailwind fuer Styling nutzen.

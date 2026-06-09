@@ -236,7 +236,18 @@ if __name__ == "__main__":
     max_turns = int(sys.argv[2]) if len(sys.argv) > 2 else 80
 
     if prompt_file:
-        prompt = Path(prompt_file).read_text()
+        template = Path(prompt_file).read_text()
+        # Platzhalter {VAR} mit Umgebungsvariablen befuellen (tolerant)
+        try:
+            prompt = template.format_map({
+                k: v for k, v in os.environ.items()
+                if k in (
+                    "JIRA_TICKET_ID", "TICKET_CONTENT", "CONF_CONTEXT",
+                    "FIX_ITERATION", "TEST_OUTPUT",
+                )
+            })
+        except KeyError:
+            prompt = template  # Unvollstaendige Vars: Template unveraendert nutzen
     else:
         prompt = sys.stdin.read()
 

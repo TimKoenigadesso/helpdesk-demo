@@ -75,34 +75,9 @@ claude-implement:
       print('\n\n'.join(out)[:4000])
       " 2>/dev/null || echo "Parse-Fehler")
       fi
-    # Python-Agent via Vertex AI ausfuehren (kein Anthropic API Key noetig)
-    - |
-      cat > /tmp/claude-prompt.txt << PROMPTEOF
-Du bist ein erfahrener Softwareentwickler in einer GitLab CI Pipeline. Implementiere das folgende Jira Ticket vollstaendig.
-
-JIRA TICKET (${JIRA_TICKET_ID}):
-${TICKET_CONTENT}
-
-CONFLUENCE-KONTEXT (Architektur-Dokumentation):
-${CONF_CONTEXT}
-
-CODEBASE:
-- Backend: FastAPI (Python) in ./backend/
-- Frontend: React + Vite + Tailwind in ./frontend/src/
-- Datenbank: SQLite via ./backend/database.py (get_conn())
-- Modelle: ./backend/models.py (VALID_PRIORITIES, VALID_CATEGORIES fuer Validierung)
-- Tests: ./backend/tests/test_api.py, ./frontend/tests/helpdesk.spec.ts
-
-AUFGABEN (in dieser Reihenfolge):
-1. Lies relevante Dateien (backend/main.py, backend/models.py, backend/database.py, frontend/src/App.tsx)
-2. Implementiere das Feature (Backend-Route + Frontend-Komponente mit Tailwind-Klassen)
-3. Ergaenze pytest Tests in backend/tests/test_api.py
-4. Ergaenze Playwright Tests in frontend/tests/helpdesk.spec.ts (data-testid Attribute nutzen)
-5. Committe: Bash("git add -A && git commit -m 'feat(${JIRA_TICKET_ID}): implementiere feature'")
-
-REGELN: Keine Secrets hardcoden. Bestehende Konventionen einhalten. Tailwind fuer Styling nutzen.
-PROMPTEOF
-      python3 scripts/claude-agent.py /tmp/claude-prompt.txt 80
+    # Python-Agent via Vertex AI (Template aus Repo, kein Heredoc/YAML-Problem)
+    - export TICKET_CONTENT="$TICKET_CONTENT" CONF_CONTEXT="$CONF_CONTEXT"
+    - python3 scripts/claude-agent.py scripts/prompts/implement.txt 80
     - git push origin "feature/$JIRA_TICKET_ID" --set-upstream --force-with-lease
 
 # ── TEST ──────────────────────────────────────────────────────────────────
@@ -192,19 +167,9 @@ fix-iteration:
       fi
     # Testausgabe fuer beide Test-Typen sammeln
     - cd backend && python -m pytest tests/ -v --tb=long 2>&1 | tee /tmp/test-output.txt; cd ..
-    # Bug fixer via Python-Agent (Vertex AI, kein Anthropic API Key)
-    - |
-      cat > /tmp/fix-prompt.txt << FIXPROMPTEOF
-Du bist ein erfahrener Softwareentwickler und Bug Fixer (Iteration ${FIX_ITERATION}/3).
-
-Folgende Tests schlagen fehl:
-$(cat /tmp/test-output.txt | tail -80)
-
-Analysiere die Fehler und behebe sie im Produktionscode.
-Aendere NICHT die Test-Dateien (test_api.py, helpdesk.spec.ts).
-Committe: Bash("git add -A && git commit -m 'fix(${JIRA_TICKET_ID}): iteration-${FIX_ITERATION} bug fixes'")
-FIXPROMPTEOF
-      python3 scripts/claude-agent.py /tmp/fix-prompt.txt 30
+    # Bug fixer via Python-Agent
+    - export TEST_OUTPUT="$(cat /tmp/test-output.txt | tail -80)"
+    - python3 scripts/claude-agent.py scripts/prompts/fix.txt 30
     - git push origin "feature/$JIRA_TICKET_ID" --force-with-lease
     # Verifizierung nach dem Fix
     - cd backend && python -m pytest tests/ -v --tb=short
@@ -231,28 +196,7 @@ create-merge-request:
     - git checkout "feature/$JIRA_TICKET_ID"
   script:
     # Schritt 1: Feature-Dokumentation via Python-Agent generieren und committen
-    - |
-      cat > /tmp/docs-prompt.txt << DOCSPROMPTEOF
-Lies den Git-Diff gegenueber main (Bash: git diff main...HEAD) und schreibe eine praegnante Feature-Dokumentation nach docs/FEATURE_DOCS.md.
-
-Struktur:
-# Feature: [Titel aus Jira ${JIRA_TICKET_ID}]
-
-## Was wurde implementiert
-[3-5 Stichpunkte zu den Aenderungen]
-
-## Neue API-Endpunkte
-[Tabelle: Methode | Pfad | Beschreibung | Parameter]
-
-## Tests
-[Welche Tests wurden ergaenzt und was pruefen sie]
-
-## Deployment-Hinweise
-[Eventuelle DB-Migrationen, neue Env-Variablen, Abhaengigkeiten]
-
-Committe: Bash("git add docs/FEATURE_DOCS.md && git commit -m 'docs(${JIRA_TICKET_ID}): feature documentation' && git push origin feature/${JIRA_TICKET_ID} --force-with-lease")
-DOCSPROMPTEOF
-      python3 scripts/claude-agent.py /tmp/docs-prompt.txt 15
+    - python3 scripts/claude-agent.py scripts/prompts/document.txt 15
     # Schritt 2: Merge Request in GitLab erstellen
     - |
       MR_RESPONSE=$(curl -sf -X POST \

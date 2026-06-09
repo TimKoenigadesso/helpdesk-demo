@@ -1,0 +1,18 @@
+Lies den Git-Diff gegenueber main mit Bash("git diff main...HEAD") und schreibe eine praegnante Feature-Dokumentation nach docs/FEATURE_DOCS.md.
+
+Struktur:
+# Feature: [Titel aus Jira {JIRA_TICKET_ID}]
+
+## Was wurde implementiert
+[3-5 Stichpunkte zu den Aenderungen]
+
+## Neue API-Endpunkte
+[Tabelle: Methode | Pfad | Beschreibung | Parameter]
+
+## Tests
+[Welche Tests wurden ergaenzt und was pruefen sie]
+
+## Deployment-Hinweise
+[Eventuelle DB-Migrationen, neue Env-Variablen, Abhaengigkeiten]
+
+Committe mit Bash("git add docs/FEATURE_DOCS.md && git commit -m 'docs({JIRA_TICKET_ID}): feature documentation' && git push origin feature/{JIRA_TICKET_ID} --force-with-lease")
