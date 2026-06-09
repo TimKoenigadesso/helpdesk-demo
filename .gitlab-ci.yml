@@ -141,10 +141,11 @@ test-e2e:
 
 fix-iteration:
   stage: fix
-  image: python:3.12  # hat git, pip, curl — kein Node noetig fuer pytest+agent
+  image: python:3.12
   rules:
     - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
       when: on_failure
+  dependencies: []  # Keine Artifacts von test-unit/test-e2e laden (wuerden git checkout blockieren)
   variables:
     FIX_ITERATION: "1"
     CLAUDE_AGENT_MODEL: "claude-sonnet-4-6"
@@ -156,7 +157,8 @@ fix-iteration:
     - git config user.name "Claude Code Bug Fixer"
     - git remote set-url origin "https://oauth2:${GITLAB_ACCESS_TOKEN}@gitlab.adesso-group.com/tim.koenig/helpdesk-demo.git"
     - git fetch origin
-    - git checkout "feature/$JIRA_TICKET_ID"
+    - git reset --hard HEAD  # Sicherstellen dass Working Tree sauber ist
+    - git checkout -f "feature/$JIRA_TICKET_ID"
   script:
     - |
       if [ "$FIX_ITERATION" -gt "3" ]; then
