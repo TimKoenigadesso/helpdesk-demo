@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, Ticket } from './api';
 import { TicketForm } from './components/TicketForm';
 import { TicketList } from './components/TicketList';
+import { WorkflowGuide } from './components/WorkflowGuide';
 
 function App() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -33,6 +34,7 @@ function App() {
         </div>
       </header>
       <main className="max-w-2xl mx-auto px-4 py-6">
+        <WorkflowGuide />
         <TicketForm onCreated={load} />
         <TicketList tickets={tickets} onUpdated={load} />
       </main>
