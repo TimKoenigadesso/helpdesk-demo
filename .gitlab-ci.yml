@@ -36,7 +36,7 @@ claude-implement:
   stage: implement
   image: python:3.12  # hat git, pip, curl vorinstalliert
   variables:
-    CLAUDE_AGENT_MODEL: "claude-opus-4"
+    CLAUDE_AGENT_MODEL: "claude-sonnet-4-6"
   rules:
     - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
   before_script:
@@ -147,7 +147,7 @@ fix-iteration:
       when: on_failure
   variables:
     FIX_ITERATION: "1"
-    CLAUDE_AGENT_MODEL: "claude-opus-4"
+    CLAUDE_AGENT_MODEL: "claude-sonnet-4-6"
   before_script:
     - pip install -q fastapi uvicorn pydantic pytest httpx "anthropic[vertex]>=0.40.0"
     - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/gcp-key.json
