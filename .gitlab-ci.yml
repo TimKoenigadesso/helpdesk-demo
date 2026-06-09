@@ -78,7 +78,7 @@ claude-implement:
     # Python-Agent via Vertex AI (Template aus Repo, kein Heredoc/YAML-Problem)
     - export TICKET_CONTENT="$TICKET_CONTENT" CONF_CONTEXT="$CONF_CONTEXT"
     - python3 scripts/claude-agent.py scripts/prompts/implement.txt 80
-    - git push origin "feature/$JIRA_TICKET_ID" --set-upstream --force-with-lease
+    - git push origin "feature/$JIRA_TICKET_ID" --set-upstream --force
 
 # ── TEST ──────────────────────────────────────────────────────────────────
 
@@ -170,7 +170,7 @@ fix-iteration:
     # Bug fixer via Python-Agent
     - export TEST_OUTPUT="$(cat /tmp/test-output.txt | tail -80)"
     - python3 scripts/claude-agent.py scripts/prompts/fix.txt 30
-    - git push origin "feature/$JIRA_TICKET_ID" --force-with-lease
+    - git push origin "feature/$JIRA_TICKET_ID" --force
     # Verifizierung nach dem Fix
     - cd backend && python -m pytest tests/ -v --tb=short
 
