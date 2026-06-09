@@ -77,7 +77,7 @@ claude-implement:
       fi
     # Claude Code ausfuehren
     - |
-      claude --dangerouslySkipPermissions \
+      claude --dangerously-skip-permissions \
         --allowedTools "Read,Write,Edit,Bash,Glob,Grep" \
         --max-turns 80 \
         -p "Du bist Claude Code in einer GitLab CI Pipeline. Implementiere das folgende Jira Ticket vollstaendig.
@@ -195,7 +195,7 @@ fix-iteration:
     - cd backend && python -m pytest tests/ -v --tb=long 2>&1 | tee /tmp/test-output.txt; cd ..
     # Bug fixer laufen lassen
     - |
-      claude --dangerouslySkipPermissions \
+      claude --dangerously-skip-permissions \
         --allowedTools "Read,Write,Edit,Bash,Glob,Grep" \
         --max-turns 30 \
         -p "Du bist Claude Code Bug Fixer (Iteration $FIX_ITERATION/3).
@@ -233,7 +233,7 @@ create-merge-request:
   script:
     # Schritt 1: Feature-Dokumentation generieren und committen
     - |
-      claude --dangerouslySkipPermissions \
+      claude --dangerously-skip-permissions \
         --allowedTools "Read,Write,Glob,Bash" \
         --max-turns 15 \
         -p "Lies den Git-Diff gegenueber main (git diff main...HEAD) und schreibe eine praegnante Feature-Dokumentation nach docs/FEATURE_DOCS.md.
