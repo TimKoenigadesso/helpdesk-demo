@@ -21,7 +21,7 @@ def get_client():
         region=os.environ.get("CLOUD_ML_REGION", "europe-west1"),
     )
 
-MODEL = os.environ.get("CLAUDE_AGENT_MODEL", "claude-sonnet-4-5@20251001")
+MODEL = os.environ.get("CLAUDE_AGENT_MODEL", "claude-sonnet-4-6")
 MAX_TOKENS = int(os.environ.get("CLAUDE_AGENT_MAX_TOKENS", "8192"))
 
 # ── Tool-Implementierungen ────────────────────────────────────────────────────
