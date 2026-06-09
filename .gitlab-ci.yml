@@ -4,6 +4,7 @@ stages:
   - test
   - fix
   - finalize
+  - deploy
   - reset
 
 variables:
@@ -306,6 +307,100 @@ create-merge-request:
   artifacts:
     reports:
       dotenv: mr-url.env
+
+# ── DEPLOY ────────────────────────────────────────────────────────────────
+# Laeuft automatisch bei jedem Push auf main
+# Benoetigt CI/CD-Variablen: GCP_PROJECT_ID, GCP_SERVICE_ACCOUNT_KEY,
+#   GCP_SA_EMAIL, VITE_JIRA_URL, VITE_CONFLUENCE_URL
+
+deploy:
+  stage: deploy
+  image: docker:24
+  services: [docker:24-dind]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $PIPELINE_TYPE == null'
+  variables:
+    GAR_REGION: europe-west1
+    GAR_REPO: helpdesk-demo
+    SERVICE_REGION: europe-west1
+  before_script:
+    - apk add --no-cache curl python3 bash
+    # Google Cloud SDK installieren
+    - curl -sSL https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=/usr/local
+    - export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+    # Authentifizieren
+    - echo "$GCP_SERVICE_ACCOUNT_KEY" > /tmp/gcp-key.json
+    - gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+    - gcloud config set project "$GCP_PROJECT_ID"
+    # Docker fuer Artifact Registry konfigurieren
+    - gcloud auth configure-docker "${GAR_REGION}-docker.pkg.dev" --quiet
+    # Artifact Registry Repository anlegen (idempotent)
+    - |
+      gcloud artifacts repositories describe "$GAR_REPO" \
+        --location="$GAR_REGION" --quiet 2>/dev/null \
+      || gcloud artifacts repositories create "$GAR_REPO" \
+          --repository-format=docker \
+          --location="$GAR_REGION" \
+          --quiet
+  script:
+    - export IMAGE_BASE="${GAR_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPO}"
+
+    # ── Backend bauen & pushen ─────────────────────────────────────────────
+    - docker build -t "${IMAGE_BASE}/backend:${CI_COMMIT_SHA}" ./backend
+    - docker push "${IMAGE_BASE}/backend:${CI_COMMIT_SHA}"
+
+    # ── Backend auf Cloud Run deployen ────────────────────────────────────
+    - |
+      gcloud run deploy helpdesk-demo-backend \
+        --image "${IMAGE_BASE}/backend:${CI_COMMIT_SHA}" \
+        --region "$SERVICE_REGION" \
+        --platform managed \
+        --allow-unauthenticated \
+        --service-account "${GCP_SA_EMAIL}" \
+        --set-env-vars "DB_PATH=/tmp/helpdesk.db,ANTHROPIC_VERTEX_PROJECT_ID=${GCP_PROJECT_ID},CLOUD_ML_REGION=${SERVICE_REGION}" \
+        --quiet
+
+    # ── Backend-URL ermitteln ──────────────────────────────────────────────
+    - |
+      BACKEND_URL=$(gcloud run services describe helpdesk-demo-backend \
+        --region "$SERVICE_REGION" \
+        --format "value(status.url)")
+      echo "Backend URL: $BACKEND_URL"
+
+    # ── Frontend bauen (mit allen Konfig-URLs) & pushen ───────────────────
+    - |
+      docker build \
+        --build-arg VITE_API_URL="${BACKEND_URL}" \
+        --build-arg VITE_JIRA_URL="${VITE_JIRA_URL:-}" \
+        --build-arg VITE_GITLAB_URL="https://gitlab.adesso-group.com" \
+        --build-arg VITE_GITLAB_PROJECT_PATH="tim.koenig/helpdesk-demo" \
+        --build-arg VITE_CONFLUENCE_URL="${VITE_CONFLUENCE_URL:-}" \
+        -t "${IMAGE_BASE}/frontend:${CI_COMMIT_SHA}" \
+        ./frontend
+    - docker push "${IMAGE_BASE}/frontend:${CI_COMMIT_SHA}"
+
+    # ── Frontend auf Cloud Run deployen ───────────────────────────────────
+    - |
+      gcloud run deploy helpdesk-demo-frontend \
+        --image "${IMAGE_BASE}/frontend:${CI_COMMIT_SHA}" \
+        --region "$SERVICE_REGION" \
+        --platform managed \
+        --allow-unauthenticated \
+        --quiet
+
+    # ── Finale URL ausgeben ────────────────────────────────────────────────
+    - |
+      FRONTEND_URL=$(gcloud run services describe helpdesk-demo-frontend \
+        --region "$SERVICE_REGION" \
+        --format "value(status.url)")
+      echo "================================================================"
+      echo "App live: $FRONTEND_URL"
+      echo "================================================================"
+      echo "FRONTEND_URL=${FRONTEND_URL}" > deploy.env
+  artifacts:
+    reports:
+      dotenv: deploy.env
+    expire_in: 7 days
 
 # ── RESET ─────────────────────────────────────────────────────────────────
 
