@@ -318,7 +318,8 @@ deploy:
   image: docker:24
   services: [docker:24-dind]
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $PIPELINE_TYPE == null'
+    # Nur bei explizitem PIPELINE_TYPE=deploy UND wenn GCP-Variablen gesetzt sind
+    - if: '$PIPELINE_TYPE == "deploy" && $GCP_SERVICE_ACCOUNT_KEY && $GCP_PROJECT_ID'
   variables:
     GAR_REGION: europe-west1
     GAR_REPO: helpdesk-demo
