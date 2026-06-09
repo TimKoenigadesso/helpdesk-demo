@@ -44,6 +44,7 @@ claude-implement:
     - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
     - git config user.email "claude-code@adesso.de"
     - git config user.name "Claude Code Agent"
+    - git remote set-url origin "https://oauth2:${GITLAB_ACCESS_TOKEN}@gitlab.adesso-group.com/tim.koenig/helpdesk-demo.git"
     - git checkout -b "feature/$JIRA_TICKET_ID" 2>/dev/null || git checkout "feature/$JIRA_TICKET_ID"
   script:
     # Jira Ticket laden
@@ -152,6 +153,7 @@ fix-iteration:
     - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
     - git config user.email "claude-code@adesso.de"
     - git config user.name "Claude Code Bug Fixer"
+    - git remote set-url origin "https://oauth2:${GITLAB_ACCESS_TOKEN}@gitlab.adesso-group.com/tim.koenig/helpdesk-demo.git"
     - git fetch origin
     - git checkout "feature/$JIRA_TICKET_ID"
   script:
@@ -192,6 +194,7 @@ create-merge-request:
     - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
     - git config user.email "claude-code@adesso.de"
     - git config user.name "Claude Code Agent"
+    - git remote set-url origin "https://oauth2:${GITLAB_ACCESS_TOKEN}@gitlab.adesso-group.com/tim.koenig/helpdesk-demo.git"
     - git fetch origin
     - git checkout "feature/$JIRA_TICKET_ID"
   script:
@@ -357,5 +360,6 @@ reset-demo:
     - apk add --no-cache curl python3
     - git config user.email "claude-code@adesso.de"
     - git config user.name "Demo Reset Bot"
+    - git remote set-url origin "https://oauth2:${GITLAB_ACCESS_TOKEN}@gitlab.adesso-group.com/tim.koenig/helpdesk-demo.git"
   script:
     - bash scripts/reset-demo.sh
