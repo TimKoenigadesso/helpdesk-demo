@@ -1,4 +1,7 @@
 import { Ticket, api } from '../api';
+import { PriorityBadge } from './PriorityBadge';
+import { CategoryTag } from './CategoryTag';
+import { AiPanel } from './AiPanel';
 
 interface Props {
   tickets: Ticket[];
@@ -12,23 +15,56 @@ export function TicketList({ tickets, onUpdated }: Props) {
   };
 
   if (tickets.length === 0) {
-    return <p data-testid="empty-state">Keine Tickets vorhanden.</p>;
+    return (
+      <div className="text-center py-12 text-gray-400" data-testid="empty-state">
+        <p className="text-sm">Keine Tickets vorhanden.</p>
+      </div>
+    );
   }
 
   return (
-    <ul style={{ listStyle: 'none', padding: 0 }}>
+    <ul className="space-y-3">
       {tickets.map((t) => (
         <li key={t.id} data-testid="ticket-item"
-          style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12, marginBottom: 8 }}>
-          <strong data-testid="ticket-title-display">{t.title}</strong>
-          <span style={{ marginLeft: 8, fontSize: 12, color: t.status === 'open' ? 'green' : 'gray' }}>
-            [{t.status}]
-          </span>
-          <p style={{ margin: '4px 0', fontSize: 14, color: '#555' }}>{t.description}</p>
+          className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  data-testid="ticket-title-display"
+                  className="font-semibold text-gray-900 text-sm"
+                >
+                  {t.title}
+                </span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                  t.status === 'open'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {t.status === 'open' ? 'Offen' : 'Geschlossen'}
+                </span>
+                <PriorityBadge priority={t.priority} />
+                <CategoryTag category={t.category} />
+              </div>
+              <p className="mt-1.5 text-sm text-gray-600">{t.description}</p>
+            </div>
+            {t.status === 'open' && (
+              <button
+                onClick={() => handleClose(t.id)}
+                data-testid="close-ticket"
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg border border-gray-300 text-xs
+                  font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Schliessen
+              </button>
+            )}
+          </div>
           {t.status === 'open' && (
-            <button onClick={() => handleClose(t.id)} data-testid="close-ticket">
-              Schließen
-            </button>
+            <AiPanel
+              ticketId={t.id}
+              suggestion={t.ai_suggestion}
+              onAnalyzed={onUpdated}
+            />
           )}
         </li>
       ))}

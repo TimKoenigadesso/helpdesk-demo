@@ -23,15 +23,16 @@ export function TicketForm({ onCreated }: Props) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: 24, padding: 16, border: '1px solid #ddd', borderRadius: 8 }}>
-      <h2 style={{ marginBottom: 12 }}>Neues Ticket erstellen</h2>
+    <form onSubmit={handleSubmit} className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <h2 className="text-lg font-semibold text-gray-800 mb-4">Neues Ticket erstellen</h2>
       <input
         placeholder="Titel"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
         data-testid="ticket-title"
-        style={{ display: 'block', width: '100%', marginBottom: 8, padding: 8, boxSizing: 'border-box' }}
+        className="block w-full mb-3 px-3 py-2 rounded-lg border border-gray-300 text-sm
+          focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
       />
       <textarea
         placeholder="Beschreibung"
@@ -40,9 +41,16 @@ export function TicketForm({ onCreated }: Props) {
         required
         rows={3}
         data-testid="ticket-description"
-        style={{ display: 'block', width: '100%', marginBottom: 8, padding: 8, boxSizing: 'border-box' }}
+        className="block w-full mb-4 px-3 py-2 rounded-lg border border-gray-300 text-sm
+          focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
       />
-      <button type="submit" disabled={loading} data-testid="ticket-submit">
+      <button
+        type="submit"
+        disabled={loading}
+        data-testid="ticket-submit"
+        className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium
+          hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
         {loading ? 'Wird erstellt...' : 'Ticket erstellen'}
       </button>
     </form>

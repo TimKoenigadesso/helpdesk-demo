@@ -13,10 +13,23 @@ def init_db():
                 title TEXT NOT NULL,
                 description TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'open',
+                category TEXT NOT NULL DEFAULT 'uncategorized',
+                priority TEXT NOT NULL DEFAULT 'medium',
+                ai_suggestion TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
         """)
+        # Migration fuer bestehende DBs
+        for col, definition in [
+            ("category", "TEXT NOT NULL DEFAULT 'uncategorized'"),
+            ("priority", "TEXT NOT NULL DEFAULT 'medium'"),
+            ("ai_suggestion", "TEXT"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} {definition}")
+            except Exception:
+                pass  # Spalte existiert bereits
 
 @contextmanager
 def get_conn():

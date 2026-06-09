@@ -5,6 +5,9 @@ export interface Ticket {
   title: string;
   description: string;
   status: string;
+  category: string;
+  priority: string;
+  ai_suggestion: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +34,11 @@ export const api = {
       body: JSON.stringify({ status }),
     });
     if (!r.ok) throw new Error('Failed to update ticket');
+    return r.json() as Promise<Ticket>;
+  },
+  async analyzeTicket(id: number): Promise<Ticket> {
+    const r = await fetch(`${API_BASE}/tickets/${id}/analyze`, { method: 'POST' });
+    if (!r.ok) throw new Error('Failed to analyze ticket');
     return r.json() as Promise<Ticket>;
   },
 };
