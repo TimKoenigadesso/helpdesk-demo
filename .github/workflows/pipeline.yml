@@ -220,6 +220,69 @@ jobs:
           ANTHROPIC_VERTEX_PROJECT_ID: mock
         run: cd backend && python3 -m pytest tests/ -v --tb=short
 
+# ── DEPLOY ────────────────────────────────────────────────────────────────────
+
+  deploy:
+    needs: test-unit
+    if: always() && needs.test-unit.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: europe-west3-docker.pkg.dev/adesso-genai-solunit-demo/aeh-services
+      BACKEND_URL: https://helpdesk-demo-backend-781137566329.europe-west3.run.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/${{ github.event.inputs.jira_ticket_id }}
+
+      - name: GCP Credentials einrichten
+        env:
+          GCP_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: |
+          echo "$GCP_KEY" | base64 -d > /tmp/gcp-key.json
+          gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+          gcloud config set project adesso-genai-solunit-demo
+
+      - name: Docker fuer Artifact Registry authentifizieren
+        run: gcloud auth configure-docker europe-west3-docker.pkg.dev --quiet
+
+      - name: Backend-Image bauen und pushen
+        run: |
+          docker build -t "$REGISTRY/helpdesk-demo-backend:latest" ./backend
+          docker push "$REGISTRY/helpdesk-demo-backend:latest"
+
+      - name: Frontend-Image bauen und pushen
+        run: |
+          docker build \
+            --build-arg VITE_API_URL="$BACKEND_URL" \
+            -t "$REGISTRY/helpdesk-demo-frontend:latest" ./frontend
+          docker push "$REGISTRY/helpdesk-demo-frontend:latest"
+
+      - name: Backend auf Cloud Run deployen
+        run: |
+          gcloud run deploy helpdesk-demo-backend \
+            --image "$REGISTRY/helpdesk-demo-backend:latest" \
+            --region europe-west3 --allow-unauthenticated --quiet
+
+      - name: Frontend auf Cloud Run deployen
+        run: |
+          gcloud run deploy helpdesk-demo-frontend \
+            --image "$REGISTRY/helpdesk-demo-frontend:latest" \
+            --region europe-west3 --allow-unauthenticated --quiet
+
+      - name: App-URL in Jira kommentieren
+        env:
+          JIRA_USER: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
+        run: |
+          APP_URL="https://helpdesk-demo-frontend-781137566329.europe-west3.run.app"
+          curl -sf -X POST \
+            -u "${JIRA_USER}:${JIRA_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "${JIRA_URL}/rest/api/3/issue/${JIRA_TICKET_ID}/comment" \
+            -d "{\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Feature live: ${APP_URL}\"}]}]}}" || true
+
 # ── FINALIZE ──────────────────────────────────────────────────────────────────
 
   create-pr:
@@ -273,8 +336,13 @@ jobs:
             --head "feature/${JIRA_TICKET_ID}" \
             --state open \
             --json url --jq '.[0].url' 2>/dev/null || echo "")
+          APP_URL="https://helpdesk-demo-frontend-781137566329.europe-west3.run.app"
           if [ -z "$PR_URL" ]; then
-            BODY="Automatisch generiert - Jira: ${JIRA_URL}/browse/${JIRA_TICKET_ID} - Workflow: ${RUN_URL}"
+            BODY="Automatisch generiert von Claude Code.
+
+**Jira:** ${JIRA_URL}/browse/${JIRA_TICKET_ID}
+**Live-App:** ${APP_URL}
+**Pipeline:** ${RUN_URL}"
             PR_URL=$(gh pr create \
               --title "[${JIRA_TICKET_ID}] Automatisch implementiert durch Claude Code" \
               --body "$BODY" \
@@ -323,7 +391,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Git konfigurieren und Demo zuruecksetzen
+      - name: GCP Credentials einrichten
+        env:
+          GCP_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: |
+          echo "$GCP_KEY" | base64 -d > /tmp/gcp-key.json
+          gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+          gcloud config set project adesso-genai-solunit-demo
+
+      - name: Git konfigurieren und Feature-Branches loeschen
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -338,4 +414,26 @@ jobs:
           gh pr list --state open --json number --jq '.[].number' | while read -r pr; do
             gh pr close "$pr" 2>/dev/null && echo "PR #${pr} geschlossen" || true
           done
+
+      - name: Docker fuer Artifact Registry authentifizieren
+        run: gcloud auth configure-docker europe-west3-docker.pkg.dev --quiet
+
+      - name: App von main neu bauen und deployen
+        env:
+          REGISTRY: europe-west3-docker.pkg.dev/adesso-genai-solunit-demo/aeh-services
+          BACKEND_URL: https://helpdesk-demo-backend-781137566329.europe-west3.run.app
+        run: |
+          docker build -t "$REGISTRY/helpdesk-demo-backend:latest" ./backend
+          docker push "$REGISTRY/helpdesk-demo-backend:latest"
+          docker build \
+            --build-arg VITE_API_URL="$BACKEND_URL" \
+            -t "$REGISTRY/helpdesk-demo-frontend:latest" ./frontend
+          docker push "$REGISTRY/helpdesk-demo-frontend:latest"
+          gcloud run deploy helpdesk-demo-backend \
+            --image "$REGISTRY/helpdesk-demo-backend:latest" \
+            --region europe-west3 --allow-unauthenticated --quiet
+          gcloud run deploy helpdesk-demo-frontend \
+            --image "$REGISTRY/helpdesk-demo-frontend:latest" \
+            --region europe-west3 --allow-unauthenticated --quiet
+          echo "App zurueck auf main deployt"
 
