@@ -115,8 +115,9 @@ test-e2e:
   before_script:
     - git fetch origin
     - git checkout "feature/$JIRA_TICKET_ID"
-    # Python + Backend-Abhaengigkeiten (Playwright-Image = Ubuntu, hat pip3)
-    - pip3 install -q fastapi uvicorn pydantic "anthropic[vertex]>=0.40.0"
+    # Python + Backend-Abhaengigkeiten
+    - apt-get install -y -qq python3-pip 2>/dev/null || true
+    - python3 -m pip install -q fastapi uvicorn pydantic "anthropic[vertex]>=0.40.0"
     # Backend im Hintergrund starten (Fallback-Modus ohne echte Vertex-Credentials)
     - cd backend
     - DB_PATH=/tmp/e2e.db ANTHROPIC_VERTEX_PROJECT_ID=mock uvicorn main:app --host 0.0.0.0 --port 8000 &
