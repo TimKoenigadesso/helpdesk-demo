@@ -10,6 +10,10 @@ on:
         description: 'Jira Ticket ID z.B. DMBRD-14'
         required: false
 
+permissions:
+  contents: write
+  pull-requests: write
+
 # ── IMPLEMENT ─────────────────────────────────────────────────────────────────
 
 jobs:
