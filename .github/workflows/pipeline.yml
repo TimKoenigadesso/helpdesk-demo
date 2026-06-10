@@ -259,16 +259,10 @@ jobs:
             --state open \
             --json url --jq '.[0].url' 2>/dev/null || echo "")
           if [ -z "$PR_URL" ]; then
+            BODY="Automatisch generiert - Jira: ${JIRA_URL}/browse/${JIRA_TICKET_ID} - Workflow: ${RUN_URL}"
             PR_URL=$(gh pr create \
               --title "[${JIRA_TICKET_ID}] Automatisch implementiert durch Claude Code" \
-              --body "## Automatisch generiert durch Claude Code
-
-**Jira Ticket:** ${JIRA_URL}/browse/${JIRA_TICKET_ID}
-**Workflow:** ${RUN_URL}
-
-Alle Unit Tests erfolgreich.
-
-Feature-Dokumentation: \`docs/FEATURE_DOCS.md\`" \
+              --body "$BODY" \
               --base main \
               --head "feature/${JIRA_TICKET_ID}" 2>/dev/null || echo "")
           fi
