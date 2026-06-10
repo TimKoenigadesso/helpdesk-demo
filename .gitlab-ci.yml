@@ -132,11 +132,26 @@ test-e2e:
       for i in $(seq 1 15); do
         curl -sf http://localhost:8000/health && echo "Backend bereit" && break || sleep 2
       done
-    - npx playwright install --with-deps chromium
-    # @playwright/test Package fuer playwright.config.ts installieren
-    - npm install -D "@playwright/test@1.44.0"
+    # Playwright-Image hat Browser vorinstalliert — KEIN install noetig
+    # @playwright/test aus System-Install verlinken (vermeidet Browser-Versions-Konflikt)
+    - mkdir -p node_modules
+    - |
+      PLAYWRIGHT_LIB=$(find /usr -path "*/playwright/package.json" -not -path "*/node_modules/*/node_modules/*" 2>/dev/null | head -1)
+      if [ -n "$PLAYWRIGHT_LIB" ]; then
+        PLAYWRIGHT_DIR=$(dirname $PLAYWRIGHT_LIB)
+        ln -sf $PLAYWRIGHT_DIR node_modules/playwright 2>/dev/null || true
+      fi
+    - |
+      PW_TEST_LIB=$(find /usr -path "*/@playwright/test/package.json" 2>/dev/null | head -1)
+      if [ -n "$PW_TEST_LIB" ]; then
+        PW_TEST_DIR=$(dirname $PW_TEST_LIB)
+        mkdir -p node_modules/@playwright
+        ln -sf $PW_TEST_DIR node_modules/@playwright/test 2>/dev/null || true
+      else
+        npm install -D "@playwright/test@1.44.0"
+      fi
   script:
-    - FRONTEND_URL=http://localhost:5173 npx playwright test --reporter=list
+    - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright FRONTEND_URL=http://localhost:5173 npx playwright test --reporter=list
   artifacts:
     when: always
     paths: [playwright-report/, test-results/]
