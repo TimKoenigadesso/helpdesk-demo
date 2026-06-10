@@ -80,6 +80,17 @@ jobs:
           JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
         run: git push origin "feature/${JIRA_TICKET_ID}" --force
 
+      - name: Jira Status auf In Implementierung setzen
+        env:
+          JIRA_USER: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
+        run: |
+          curl -sf -X POST -u "${JIRA_USER}:${JIRA_TOKEN}" -H "Content-Type: application/json" \
+            "${JIRA_URL}/rest/api/3/issue/${JIRA_TICKET_ID}/transitions" \
+            -d '{"transition":{"id":"2"}}' || true
+
 # ── TEST ──────────────────────────────────────────────────────────────────────
 
   test-unit:
