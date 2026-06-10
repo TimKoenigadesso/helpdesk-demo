@@ -268,7 +268,7 @@ jobs:
               --title "[${JIRA_TICKET_ID}] Automatisch implementiert durch Claude Code" \
               --body "$BODY" \
               --base main \
-              --head "feature/${JIRA_TICKET_ID}" 2>/dev/null || echo "")
+              --head "feature/${JIRA_TICKET_ID}" || echo "")
           fi
           echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
           echo "PR: ${PR_URL}"
