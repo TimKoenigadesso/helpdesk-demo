@@ -224,22 +224,32 @@ create-merge-request:
   script:
     # Schritt 1: Feature-Dokumentation via Python-Agent generieren und committen
     - python3 scripts/claude-agent.py scripts/prompts/document.txt 15
-    # Schritt 2: Merge Request in GitLab erstellen
+    # Schritt 2: Merge Request erstellen oder bestehenden wiederverwenden
     - |
-      MR_RESPONSE=$(curl -sf -X POST \
+      # Erst prüfen ob MR bereits existiert
+      EXISTING_MR=$(curl -sf \
         -H "PRIVATE-TOKEN: $GITLAB_ACCESS_TOKEN" \
-        -H "Content-Type: application/json" \
-        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests" \
-        -d "{
-          \"source_branch\": \"feature/$JIRA_TICKET_ID\",
-          \"target_branch\": \"main\",
-          \"title\": \"[$JIRA_TICKET_ID] Automatisch implementiert durch Claude Code\",
-          \"description\": \"## Automatisch generiert durch Claude Code\n\n**Jira Ticket:** $JIRA_BASE_URL/browse/$JIRA_TICKET_ID\n**Pipeline:** $CI_PIPELINE_URL\n\nAlle Unit Tests und Playwright E2E Tests erfolgreich.\n\nFeature-Dokumentation: siehe \`docs/FEATURE_DOCS.md\` in diesem Branch.\",
-          \"labels\": \"agentic-delivery\"
-        }")
-      MR_URL=$(echo "$MR_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('web_url',''))" 2>/dev/null || echo "")
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests?source_branch=feature/$JIRA_TICKET_ID&state=opened" \
+        | python3 -c "import sys,json; mrs=json.load(sys.stdin); print(mrs[0].get('web_url','') if mrs else '')" 2>/dev/null || echo "")
+      if [ -n "$EXISTING_MR" ]; then
+        echo "MR existiert bereits: $EXISTING_MR"
+        MR_URL="$EXISTING_MR"
+      else
+        MR_RESPONSE=$(curl -sf -X POST \
+          -H "PRIVATE-TOKEN: $GITLAB_ACCESS_TOKEN" \
+          -H "Content-Type: application/json" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests" \
+          -d "{
+            \"source_branch\": \"feature/$JIRA_TICKET_ID\",
+            \"target_branch\": \"main\",
+            \"title\": \"[$JIRA_TICKET_ID] Automatisch implementiert durch Claude Code\",
+            \"description\": \"## Automatisch generiert durch Claude Code\n\n**Jira Ticket:** $JIRA_BASE_URL/browse/$JIRA_TICKET_ID\n**Pipeline:** $CI_PIPELINE_URL\n\nAlle Unit Tests erfolgreich.\n\nFeature-Dokumentation: siehe \`docs/FEATURE_DOCS.md\` in diesem Branch.\",
+            \"labels\": \"agentic-delivery\"
+          }" || echo "{}")
+        MR_URL=$(echo "$MR_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('web_url',''))" 2>/dev/null || echo "")
+        echo "Merge Request erstellt: $MR_URL"
+      fi
       echo "MR_URL=$MR_URL" > mr-url.env
-      echo "Merge Request erstellt: $MR_URL"
     # Schritt 3: MR-URL als Kommentar in Jira hinzufuegen
     - |
       MR_URL=$(cat mr-url.env | grep MR_URL | cut -d= -f2)
