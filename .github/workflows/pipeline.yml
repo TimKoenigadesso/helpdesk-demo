@@ -1,0 +1,15 @@
+name: Agentic SDLC Pipeline
+on:
+  workflow_dispatch:
+    inputs:
+      pipeline_type:
+        description: agentic-feature or reset-demo
+        required: true
+      jira_ticket_id:
+        description: Jira Ticket ID
+        required: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Triggered for ${{ github.event.inputs.jira_ticket_id }}"
