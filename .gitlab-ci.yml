@@ -133,6 +133,8 @@ test-e2e:
         curl -sf http://localhost:8000/health && echo "Backend bereit" && break || sleep 2
       done
     - npx playwright install --with-deps chromium
+    # @playwright/test Package fuer playwright.config.ts installieren
+    - npm install -D "@playwright/test@1.44.0"
   script:
     - FRONTEND_URL=http://localhost:5173 npx playwright test --reporter=list
   artifacts:
