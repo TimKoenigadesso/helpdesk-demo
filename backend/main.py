@@ -31,10 +31,19 @@ def list_tickets():
 
 @app.post("/tickets", response_model=Ticket, status_code=201)
 def create_ticket(ticket: TicketCreate):
+    """Erstellt ein neues Ticket mit Titel, Beschreibung, Typ und Priorität (AGSDLC-3)."""
+    title = ticket.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Titel darf nicht leer sein")
+
+    type_ = ticket.type or "task"
+    priority = ticket.priority or "medium"
+
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO tickets (title, description) VALUES (?, ?) RETURNING *",
-            (ticket.title, ticket.description),
+            """INSERT INTO tickets (title, description, type, priority)
+               VALUES (?, ?, ?, ?) RETURNING *""",
+            (title, ticket.description, type_, priority),
         )
         row = cur.fetchone()
     return dict(row)

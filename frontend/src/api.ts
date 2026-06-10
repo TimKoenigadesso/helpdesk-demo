@@ -5,6 +5,7 @@ export interface Ticket {
   title: string;
   description: string;
   status: string;
+  type: string;
   category: string;
   priority: string;
   ai_suggestion: string | null;
@@ -18,13 +19,25 @@ export const api = {
     if (!r.ok) throw new Error('Failed to fetch tickets');
     return r.json() as Promise<Ticket[]>;
   },
-  async createTicket(data: { title: string; description: string }): Promise<Ticket> {
+  async createTicket(data: {
+    title: string;
+    description: string;
+    type: string;
+    priority: string;
+  }): Promise<Ticket> {
     const r = await fetch(`${API_BASE}/tickets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!r.ok) throw new Error('Failed to create ticket');
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ detail: 'Unbekannter Fehler' }));
+      throw new Error(
+        typeof err.detail === 'string'
+          ? err.detail
+          : JSON.stringify(err.detail)
+      );
+    }
     return r.json() as Promise<Ticket>;
   },
   async updateStatus(id: number, status: string): Promise<Ticket> {

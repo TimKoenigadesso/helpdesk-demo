@@ -11,8 +11,9 @@ def init_db():
             CREATE TABLE IF NOT EXISTS tickets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
-                description TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
                 status TEXT NOT NULL DEFAULT 'open',
+                type TEXT NOT NULL DEFAULT 'task',
                 category TEXT NOT NULL DEFAULT 'uncategorized',
                 priority TEXT NOT NULL DEFAULT 'medium',
                 ai_suggestion TEXT,
@@ -25,6 +26,7 @@ def init_db():
             ("category", "TEXT NOT NULL DEFAULT 'uncategorized'"),
             ("priority", "TEXT NOT NULL DEFAULT 'medium'"),
             ("ai_suggestion", "TEXT"),
+            ("type", "TEXT NOT NULL DEFAULT 'task'"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} {definition}")
