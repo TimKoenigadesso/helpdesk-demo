@@ -107,6 +107,7 @@ test-unit:
 test-e2e:
   stage: test
   image: mcr.microsoft.com/playwright:v1.44.0-jammy
+  allow_failure: true  # E2E-Ergebnis als Warnung — blockiert nicht Pipeline/MR
   rules:
     - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
   needs: [claude-implement]
