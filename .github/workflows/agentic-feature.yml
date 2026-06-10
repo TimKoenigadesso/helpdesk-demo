@@ -10,18 +10,11 @@ on:
         description: 'Jira Ticket ID z.B. DMBRD-14'
         required: false
 
-# Inputs als Env-Vars fuer alle Jobs (sicher - keine direkte Shell-Interpolation)
-env:
-  PIPELINE_TYPE: ${{ github.event.inputs.pipeline_type }}
-  JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
-  ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  CLOUD_ML_REGION: europe-west1
-
 # ── IMPLEMENT ─────────────────────────────────────────────────────────────────
 
 jobs:
   implement:
-    if: ${{ github.event.inputs.pipeline_type == 'agentic-feature' && github.event.inputs.jira_ticket_id != '' }}
+    if: github.event.inputs.pipeline_type == 'agentic-feature'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,13 +37,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
         run: |
           git config user.email "claude-code@adesso.de"
           git config user.name "Claude Code Agent"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
-
-      - name: Feature-Branch anlegen oder auschecken
-        run: |
           git checkout -b "feature/${JIRA_TICKET_ID}" 2>/dev/null || git checkout "feature/${JIRA_TICKET_ID}"
 
       - name: Jira-Ticket laden
@@ -58,6 +49,7 @@ jobs:
           JIRA_USER: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
         run: |
           CONTENT=$(curl -sf \
             -u "${JIRA_USER}:${JIRA_TOKEN}" \
@@ -71,19 +63,23 @@ jobs:
       - name: Claude Agent — Implementierung
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+          ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          CLOUD_ML_REGION: europe-west1
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
           CONF_CONTEXT: "Kein Confluence-Kontext konfiguriert"
         run: python3 scripts/claude-agent.py scripts/prompts/implement.txt 80
 
       - name: Feature-Branch pushen
+        env:
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
         run: git push origin "feature/${JIRA_TICKET_ID}" --force
 
 # ── TEST ──────────────────────────────────────────────────────────────────────
 
   test-unit:
     needs: implement
+    if: github.event.inputs.pipeline_type == 'agentic-feature'
     runs-on: ubuntu-latest
-    env:
-      ANTHROPIC_VERTEX_PROJECT_ID: "mock"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -97,10 +93,13 @@ jobs:
         run: pip install -q fastapi uvicorn pydantic pytest httpx "anthropic[vertex]>=0.40.0"
 
       - name: Unit-Tests ausfuehren
+        env:
+          ANTHROPIC_VERTEX_PROJECT_ID: mock
         run: cd backend && python3 -m pytest tests/ -v --tb=short
 
   test-e2e:
     needs: implement
+    if: github.event.inputs.pipeline_type == 'agentic-feature'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -149,11 +148,8 @@ jobs:
 
   fix:
     needs: [test-unit, test-e2e]
-    if: ${{ always() && needs.test-unit.result == 'failure' }}
+    if: always() && needs.test-unit.result == 'failure'
     runs-on: ubuntu-latest
-    env:
-      FIX_ITERATION: "1"
-      ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -184,17 +180,22 @@ jobs:
       - name: Tests ausfuehren und Output sammeln
         env:
           ANTHROPIC_VERTEX_PROJECT_ID: mock
-        run: |
-          cd backend && python3 -m pytest tests/ -v --tb=long 2>&1 | tee /tmp/test-output.txt; cd ..
+        run: cd backend && python3 -m pytest tests/ -v --tb=long 2>&1 | tee /tmp/test-output.txt; cd ..
 
       - name: Fix-Agent ausfuehren
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+          ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          CLOUD_ML_REGION: europe-west1
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
+          FIX_ITERATION: "1"
         run: |
           export TEST_OUTPUT="$(cat /tmp/test-output.txt | tail -80)"
           python3 scripts/claude-agent.py scripts/prompts/fix.txt 30
 
       - name: Fixes pushen
+        env:
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
         run: git push origin "feature/${JIRA_TICKET_ID}" --force
 
       - name: Tests nach Fix verifizieren
@@ -206,7 +207,7 @@ jobs:
 
   create-pr:
     needs: test-unit
-    if: ${{ always() && needs.test-unit.result == 'success' }}
+    if: always() && needs.test-unit.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -238,6 +239,9 @@ jobs:
       - name: Feature-Dokumentation generieren
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+          ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          CLOUD_ML_REGION: europe-west1
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
         run: python3 scripts/claude-agent.py scripts/prompts/document.txt 15
 
       - name: Pull Request erstellen oder wiederverwenden
@@ -246,12 +250,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JIRA_URL: ${{ secrets.JIRA_BASE_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
         run: |
           PR_URL=$(gh pr list \
             --head "feature/${JIRA_TICKET_ID}" \
             --state open \
             --json url --jq '.[0].url' 2>/dev/null || echo "")
-
           if [ -z "$PR_URL" ]; then
             PR_URL=$(gh pr create \
               --title "[${JIRA_TICKET_ID}] Automatisch implementiert durch Claude Code" \
@@ -266,7 +270,6 @@ Feature-Dokumentation: \`docs/FEATURE_DOCS.md\`" \
               --base main \
               --head "feature/${JIRA_TICKET_ID}" 2>/dev/null || echo "")
           fi
-
           echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
           echo "PR: ${PR_URL}"
 
@@ -275,6 +278,7 @@ Feature-Dokumentation: \`docs/FEATURE_DOCS.md\`" \
           JIRA_USER: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
         run: |
           curl -sf -X POST \
@@ -282,9 +286,7 @@ Feature-Dokumentation: \`docs/FEATURE_DOCS.md\`" \
             -H "Content-Type: application/json" \
             "${JIRA_URL}/rest/api/3/issue/${JIRA_TICKET_ID}/comment" \
             -d "{\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Pull Request erstellt: ${PR_URL}\"}]}]}}" || true
-
-          TRANSITIONS=$(curl -sf \
-            -u "${JIRA_USER}:${JIRA_TOKEN}" \
+          TRANSITIONS=$(curl -sf -u "${JIRA_USER}:${JIRA_TOKEN}" \
             "${JIRA_URL}/rest/api/3/issue/${JIRA_TICKET_ID}/transitions")
           TRANSITION_ID=$(echo "$TRANSITIONS" | python3 -c "
           import sys,json
@@ -303,14 +305,14 @@ Feature-Dokumentation: \`docs/FEATURE_DOCS.md\`" \
 # ── RESET ─────────────────────────────────────────────────────────────────────
 
   reset:
-    if: ${{ github.event.inputs.pipeline_type == 'reset-demo' }}
+    if: github.event.inputs.pipeline_type == 'reset-demo'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Git konfigurieren
+      - name: Git konfigurieren und Demo zuruecksetzen
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -318,11 +320,6 @@ Feature-Dokumentation: \`docs/FEATURE_DOCS.md\`" \
           git config user.email "claude-code@adesso.de"
           git config user.name "Demo Reset Bot"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
-
-      - name: Feature-Branches loeschen und PRs schliessen
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
           git fetch --prune
           for branch in $(git branch -r | grep 'origin/feature/' | sed 's/.*origin\///'); do
             git push origin --delete "$branch" 2>/dev/null && echo "Geloescht: $branch" || true
@@ -330,4 +327,3 @@ Feature-Dokumentation: \`docs/FEATURE_DOCS.md\`" \
           gh pr list --state open --json number --jq '.[].number' | while read -r pr; do
             gh pr close "$pr" 2>/dev/null && echo "PR #${pr} geschlossen" || true
           done
-          echo "Reset abgeschlossen"
