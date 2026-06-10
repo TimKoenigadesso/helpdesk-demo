@@ -91,7 +91,7 @@ test-unit:
     - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
   needs: [claude-implement]
   variables:
-    ANTHROPIC_VERTEX_PROJECT_ID: ""  # Fallback-Tests brauchen keinen echten Vertex-Aufruf
+    ANTHROPIC_VERTEX_PROJECT_ID: "mock"  # Fallback-Tests: backend/main.py prueft auf "mock" und gibt Mock-Antwort
   before_script:
     - git fetch origin
     - git checkout "feature/$JIRA_TICKET_ID"

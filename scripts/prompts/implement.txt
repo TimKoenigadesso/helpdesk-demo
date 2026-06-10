@@ -21,4 +21,10 @@ AUFGABEN (in dieser Reihenfolge):
 4. Ergaenze Playwright Tests in frontend/tests/helpdesk.spec.ts (data-testid Attribute nutzen)
 5. Committe alles mit Bash("git add -A && git commit -m 'feat({JIRA_TICKET_ID}): implementiere feature'")
 
-REGELN: Keine Secrets hardcoden. Bestehende Konventionen einhalten. Tailwind fuer Styling nutzen.
+REGELN:
+- Keine Secrets hardcoden. Bestehende Konventionen einhalten. Tailwind fuer Styling nutzen.
+- WICHTIG fuer test_analyze_ticket_fallback: Dieser Test prueft den Mock-Fallback.
+  In der CI-Umgebung ist ANTHROPIC_VERTEX_PROJECT_ID auf "mock" gesetzt.
+  Das Backend prueft: if not vertex_project or vertex_project == "mock": # Fallback
+  Wenn du test_analyze_ticket_fallback anpasst, stelle sicher dass er KEINEN echten
+  Vertex-API-Call ausloest - nutze os.environ.pop oder patch.dict um die Variable zu entfernen.
