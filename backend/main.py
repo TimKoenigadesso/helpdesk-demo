@@ -18,6 +18,16 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
+    # Auto-Seed bei leerer DB (z.B. nach Cloud Run Cold Start)
+    with get_conn() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0]
+    if count == 0:
+        with get_conn() as conn:
+            for t in SEED_TICKETS:
+                conn.execute(
+                    "INSERT INTO tickets (title, description, status, category, priority) VALUES (?, ?, ?, ?, ?)",
+                    (t["title"], t["description"], t["status"], t["category"], t["priority"]),
+                )
 
 @app.get("/health")
 def health():
