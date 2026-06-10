@@ -3,7 +3,7 @@
 Jira Polling Script — Re-Trigger agentic Pipeline
 Wird alle 10 Minuten von GitHub Actions ausgeführt.
 
-Sucht DMBRD-Tickets die:
+Sucht AGSDLC-Tickets die:
 1. Status = "Zu erledigen" (= zurückgestellt / Req definiert)
 2. Label = "agentic-delivery"
 3. Kommentar in den letzten 20 Minuten
@@ -82,7 +82,7 @@ def main():
 
     # JQL: Tickets zurück auf "Zu erledigen" mit aktuellem Kommentar + Label
     jql = (
-        'project = DMBRD '
+        'project = AGSDLC '
         'AND status = "Zu erledigen" '
         f'AND comment > "{cutoff_str}" '
         'AND labels = "agentic-delivery" '
