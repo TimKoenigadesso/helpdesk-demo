@@ -6,11 +6,9 @@ on:
       pipeline_type:
         description: 'agentic-feature | reset-demo'
         required: true
-        type: string
       jira_ticket_id:
         description: 'Jira Ticket ID z.B. DMBRD-14'
         required: false
-        type: string
 
 # Inputs als Env-Vars fuer alle Jobs (sicher - keine direkte Shell-Interpolation)
 env:
