@@ -302,7 +302,7 @@ jobs:
           TRANSITION_ID=$(echo "$TRANSITIONS" | python3 -c "
           import sys,json
           for t in json.load(sys.stdin).get('transitions',[]):
-              if any(k in t['name'].lower() for k in ['review','ready','bereit']):
+              if any(k in t['name'].lower() for k in ['review','ready','bereit','abnahme','fertig zur']):
                   print(t['id']); break
           " 2>/dev/null || echo "")
           if [ -n "$TRANSITION_ID" ]; then
