@@ -188,12 +188,28 @@ def run_agent(prompt: str, max_turns: int = 80) -> int:
     print(f"[agent] Starte mit Modell {MODEL}, max_turns={max_turns}", flush=True)
 
     for turn in range(max_turns):
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            tools=TOOLS,
-            messages=messages,
-        )
+        # Retry bei Rate Limit (429) mit exponentiellem Backoff
+        import time as _time
+        response = None
+        for attempt in range(5):
+            try:
+                response = client.messages.create(
+                    model=MODEL,
+                    max_tokens=MAX_TOKENS,
+                    tools=TOOLS,
+                    messages=messages,
+                )
+                break
+            except Exception as e:
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    wait = 30 * (2 ** attempt)
+                    print(f"[agent] Rate limit (Versuch {attempt+1}/5), warte {wait}s...", flush=True)
+                    _time.sleep(wait)
+                else:
+                    raise
+        if response is None:
+            print("[agent] Rate limit erschoepft nach 5 Versuchen.", flush=True)
+            return 1
 
         # Assistent-Nachricht speichern
         messages.append({"role": "assistant", "content": response.content})
