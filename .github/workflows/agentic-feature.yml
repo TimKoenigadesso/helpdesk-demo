@@ -1,6 +1,8 @@
 name: Agentic SDLC
 
 on:
+  push:
+    branches: ["force-reindex-never"]
   workflow_dispatch:
     inputs:
       pipeline_type:
