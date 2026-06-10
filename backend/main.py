@@ -1,10 +1,10 @@
 import json
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db, get_conn
-from models import TicketCreate, TicketUpdate, Ticket, TicketAnalysis, VALID_PRIORITIES, VALID_CATEGORIES
-from typing import List
+from models import TicketCreate, TicketUpdate, Ticket, TicketAnalysis, PriorityUpdate, ChangeLogEntry, VALID_PRIORITIES, VALID_CATEGORIES
+from typing import List, Optional
 
 app = FastAPI(title="Helpdesk Demo API")
 
@@ -139,3 +139,76 @@ def analyze_ticket(ticket_id: int):
         )
         row = conn.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
     return dict(row)
+
+# --- DMBRD-14: Manuelle Prioritaetsaenderung mit Audit-Log ---
+
+# RBAC: Rollen mit Berechtigung zur Prioritaetsaenderung
+PRIORITY_CHANGE_ROLES = {"admin", "manager", "projectmanager"}
+
+def _get_user_role(x_user_role: Optional[str]) -> str:
+    """Ermittelt die Benutzerrolle aus dem Request-Header."""
+    return (x_user_role or "viewer").lower().strip()
+
+@app.patch("/tickets/{ticket_id}/priority", response_model=Ticket)
+def patch_ticket_priority(
+    ticket_id: int,
+    body: PriorityUpdate,
+    x_user_role: Optional[str] = Header(default=None),
+):
+    """
+    Aendert die Prioritaet eines Tickets manuell.
+    Erfordert die Rolle 'admin', 'manager' oder 'projectmanager'.
+    Schreibt einen Audit-Log-Eintrag in change_log.
+    """
+    # Berechtigungspruefung via RBAC
+    role = _get_user_role(x_user_role)
+    if role not in PRIORITY_CHANGE_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Keine Berechtigung zur Prioritaetsaenderung. Erforderliche Rolle: admin, manager oder projectmanager.",
+        )
+
+    # Prioritaet validieren
+    if body.priority not in VALID_PRIORITIES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Ungueltige Prioritaet. Erlaubte Werte: {sorted(VALID_PRIORITIES)}",
+        )
+
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+
+        old_priority = dict(row)["priority"]
+        changed_by = body.changed_by or "anonymous"
+
+        # Prioritaet aktualisieren
+        conn.execute(
+            "UPDATE tickets SET priority = ?, updated_at = datetime('now') WHERE id = ?",
+            (body.priority, ticket_id),
+        )
+
+        # Audit-Log schreiben
+        conn.execute(
+            """INSERT INTO change_log (ticket_id, field, old_value, new_value, changed_by)
+               VALUES (?, 'priority', ?, ?, ?)""",
+            (ticket_id, old_priority, body.priority, changed_by),
+        )
+
+        row = conn.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+
+    return dict(row)
+
+@app.get("/tickets/{ticket_id}/change-log", response_model=List[ChangeLogEntry])
+def get_ticket_change_log(ticket_id: int):
+    """Gibt das Aenderungsprotokoll (Audit-Log) fuer ein Ticket zurueck."""
+    with get_conn() as conn:
+        row = conn.execute("SELECT id FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        rows = conn.execute(
+            "SELECT * FROM change_log WHERE ticket_id = ? ORDER BY changed_at DESC",
+            (ticket_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]

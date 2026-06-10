@@ -1,5 +1,5 @@
 import { Ticket, api } from '../api';
-import { PriorityBadge } from './PriorityBadge';
+import { PrioritySelector } from './PrioritySelector';
 import { CategoryTag } from './CategoryTag';
 import { AiPanel } from './AiPanel';
 
@@ -43,7 +43,11 @@ export function TicketList({ tickets, onUpdated }: Props) {
                 }`}>
                   {t.status === 'open' ? 'Offen' : 'Geschlossen'}
                 </span>
-                <PriorityBadge priority={t.priority} />
+                <PrioritySelector
+                  ticketId={t.id}
+                  currentPriority={t.priority}
+                  onUpdated={onUpdated}
+                />
                 <CategoryTag category={t.category} />
               </div>
               <p className="mt-1.5 text-sm text-gray-600">{t.description}</p>

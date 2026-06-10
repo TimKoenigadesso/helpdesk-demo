@@ -19,6 +19,16 @@ def init_db():
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
+            CREATE TABLE IF NOT EXISTS change_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id INTEGER NOT NULL,
+                field TEXT NOT NULL,
+                old_value TEXT,
+                new_value TEXT,
+                changed_by TEXT NOT NULL DEFAULT 'system',
+                changed_at TEXT NOT NULL DEFAULT (datetime('now')),
+                FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+            );
         """)
         # Migration fuer bestehende DBs
         for col, definition in [

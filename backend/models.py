@@ -16,6 +16,10 @@ class TicketUpdate(BaseModel):
     priority: Optional[str] = None
     ai_suggestion: Optional[str] = None
 
+class PriorityUpdate(BaseModel):
+    priority: str
+    changed_by: Optional[str] = "anonymous"
+
 class Ticket(BaseModel):
     id: int
     title: str
@@ -26,6 +30,15 @@ class Ticket(BaseModel):
     ai_suggestion: Optional[str] = None
     created_at: str
     updated_at: str
+
+class ChangeLogEntry(BaseModel):
+    id: int
+    ticket_id: int
+    field: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    changed_by: str
+    changed_at: str
 
 class TicketAnalysis(BaseModel):
     category: str
