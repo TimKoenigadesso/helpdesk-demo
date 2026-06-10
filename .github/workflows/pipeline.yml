@@ -329,3 +329,4 @@ Feature-Dokumentation: \`docs/FEATURE_DOCS.md\`" \
           gh pr list --state open --json number --jq '.[].number' | while read -r pr; do
             gh pr close "$pr" 2>/dev/null && echo "PR #${pr} geschlossen" || true
           done
+
