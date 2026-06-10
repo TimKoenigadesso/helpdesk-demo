@@ -1,0 +1,27 @@
+name: Jira Poll — Re-Trigger
+
+# Alle 10 Minuten Jira prüfen: Tickets die zurück auf "Zu erledigen"
+# gesetzt wurden (mit Kommentar) lösen eine neue Pipeline aus.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Jira auf Re-Trigger-Tickets prüfen
+        env:
+          JIRA_USER: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_URL: ${{ secrets.JIRA_BASE_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/jira-poll.py
