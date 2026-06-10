@@ -56,9 +56,9 @@ jobs:
             -H "Accept: application/json" \
             "${JIRA_URL}/rest/api/3/issue/${JIRA_TICKET_ID}?fields=summary,description" \
             || echo '{}')
-          echo "TICKET_CONTENT<<TICKET_EOF" >> "$GITHUB_ENV"
-          echo "$CONTENT" >> "$GITHUB_ENV"
-          echo "TICKET_EOF" >> "$GITHUB_ENV"
+          # Sicher in GITHUB_ENV schreiben (kein << um YAML-Parser-Fehler zu vermeiden)
+          ENCODED=$(echo "$CONTENT" | base64 -w 0)
+          echo "TICKET_CONTENT_B64=${ENCODED}" >> "$GITHUB_ENV"
 
       - name: Claude Agent — Implementierung
         env:
@@ -67,7 +67,9 @@ jobs:
           CLOUD_ML_REGION: europe-west1
           JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
           CONF_CONTEXT: "Kein Confluence-Kontext konfiguriert"
-        run: python3 scripts/claude-agent.py scripts/prompts/implement.txt 80
+        run: |
+          export TICKET_CONTENT=$(echo "$TICKET_CONTENT_B64" | base64 -d)
+          python3 scripts/claude-agent.py scripts/prompts/implement.txt 80
 
       - name: Feature-Branch pushen
         env:
