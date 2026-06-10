@@ -24,9 +24,10 @@ test.describe('Helpdesk App', () => {
     await page.getByTestId('ticket-title').fill('Zu schliessendes Ticket');
     await page.getByTestId('ticket-description').fill('Wird geschlossen');
     await page.getByTestId('ticket-submit').click();
-    await expect(page.getByText('Zu schliessendes Ticket')).toBeVisible({ timeout: 5000 });
-    await page.getByTestId('close-ticket').first().click();
-    await expect(page.getByText('Geschlossen').first()).toBeVisible({ timeout: 5000 });
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Zu schliessendes Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await ticketItem.getByTestId('close-ticket').click();
+    await expect(ticketItem.getByText('Geschlossen')).toBeVisible({ timeout: 5000 });
   });
 
   test('KI-Analyse-Button ist bei offenem Ticket sichtbar', async ({ page }) => {
@@ -34,7 +35,8 @@ test.describe('Helpdesk App', () => {
     await page.getByTestId('ticket-title').fill('Analyse Test Ticket');
     await page.getByTestId('ticket-description').fill('Produktionsserver reagiert nicht mehr');
     await page.getByTestId('ticket-submit').click();
-    await expect(page.getByTestId('analyze-button').first()).toBeVisible({ timeout: 5000 });
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Analyse Test Ticket' });
+    await expect(ticketItem.getByTestId('analyze-button')).toBeVisible({ timeout: 5000 });
   });
 
   test('KI-Analyse zeigt Ergebnis', async ({ page }) => {
@@ -42,8 +44,9 @@ test.describe('Helpdesk App', () => {
     await page.getByTestId('ticket-title').fill('KI Test Ticket');
     await page.getByTestId('ticket-description').fill('Passwort vergessen, Zugang gesperrt');
     await page.getByTestId('ticket-submit').click();
-    await expect(page.getByTestId('analyze-button').first()).toBeVisible({ timeout: 5000 });
-    await page.getByTestId('analyze-button').first().click();
-    await expect(page.getByTestId('ai-suggestion').first()).toBeVisible({ timeout: 10000 });
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'KI Test Ticket' });
+    await expect(ticketItem.getByTestId('analyze-button')).toBeVisible({ timeout: 5000 });
+    await ticketItem.getByTestId('analyze-button').click();
+    await expect(ticketItem.getByTestId('ai-suggestion')).toBeVisible({ timeout: 10000 });
   });
 });
