@@ -85,6 +85,45 @@ def delete_ticket(ticket_id: int):
             raise HTTPException(status_code=404, detail="Ticket not found")
         conn.execute("DELETE FROM tickets WHERE id = ?", (ticket_id,))
 
+SEED_TICKETS = [
+    {
+        "title": "VPN-Verbindung bricht nach ~5 Minuten ab",
+        "description": "Seit dem letzten Windows-Update trennt sich der Cisco AnyConnect VPN nach ca. 5 Minuten Inaktivität. Beim erneuten Verbinden erscheint Fehler 'Authentication failed'. Betrifft mehrere Kollegen im Büro Hamburg.",
+        "status": "open", "category": "infrastructure", "priority": "high",
+    },
+    {
+        "title": "Passwort abgelaufen — Konto gesperrt",
+        "description": "Nach Urlaub ist mein Windows-Konto gesperrt. Ich komme weder ins Active Directory noch in Outlook. Bitte Konto entsperren und temporäres Passwort setzen.",
+        "status": "open", "category": "access", "priority": "high",
+    },
+    {
+        "title": "Drucker im 3. OG druckt nur weiße Seiten",
+        "description": "Der Netzwerkdrucker HP LaserJet M428 (IP 10.0.3.45) druckt seit heute Morgen nur leere Seiten. Toner wurde letzte Woche gewechselt. Testseite direkt am Gerät funktioniert korrekt.",
+        "status": "open", "category": "infrastructure", "priority": "medium",
+    },
+    {
+        "title": "Excel kann keine .pdf-Dateien als Anhang öffnen",
+        "description": "Wenn ich in Excel auf einen eingebetteten PDF-Anhang doppelklicke, erscheint die Fehlermeldung 'Das Programm kann nicht geöffnet werden'. Adobe Acrobat ist installiert. Betrifft nur Excel, in Outlook funktionieren PDFs normal.",
+        "status": "open", "category": "bug", "priority": "low",
+    },
+]
+
+@app.post("/reset", status_code=200)
+def reset_demo():
+    """Setzt die Demo-DB zurück und befüllt sie mit Seed-Tickets."""
+    with get_conn() as conn:
+        conn.execute("DELETE FROM tickets")
+        try:
+            conn.execute("DELETE FROM sqlite_sequence WHERE name='tickets'")
+        except Exception:
+            pass
+        for t in SEED_TICKETS:
+            conn.execute(
+                "INSERT INTO tickets (title, description, status, category, priority) VALUES (?, ?, ?, ?, ?)",
+                (t["title"], t["description"], t["status"], t["category"], t["priority"]),
+            )
+    return {"ok": True, "seeded": len(SEED_TICKETS)}
+
 @app.post("/tickets/{ticket_id}/analyze", response_model=Ticket)
 def analyze_ticket(ticket_id: int):
     with get_conn() as conn:
