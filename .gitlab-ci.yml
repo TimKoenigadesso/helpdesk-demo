@@ -86,10 +86,12 @@ claude-implement:
 
 test-unit:
   stage: test
-  image: python:3.12  # hat git + pip vorinstalliert
+  image: python:3.12
   rules:
     - if: '$PIPELINE_TYPE == "agentic-feature" && $JIRA_TICKET_ID'
   needs: [claude-implement]
+  variables:
+    ANTHROPIC_VERTEX_PROJECT_ID: ""  # Fallback-Tests brauchen keinen echten Vertex-Aufruf
   before_script:
     - git fetch origin
     - git checkout "feature/$JIRA_TICKET_ID"
