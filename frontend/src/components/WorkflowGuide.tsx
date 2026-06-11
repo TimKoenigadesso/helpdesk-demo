@@ -98,7 +98,7 @@ const STEPS = [
   {
     number: '2',
     title: 'Pipeline starten',
-    subtitle: 'GitLab · CI/CD → Pipelines → Run Pipeline',
+    subtitle: 'GitHub Actions · Run workflow',
     color: 'bg-indigo-600',
     content: (
       <div className="space-y-3">
@@ -116,7 +116,7 @@ const STEPS = [
               : GITLAB_URL
           }
         >
-          GitLab Pipeline starten
+          GitHub Actions starten
         </ExternalLink>
       </div>
     ),
@@ -129,7 +129,7 @@ const STEPS = [
     content: (
       <div className="space-y-2">
         <p className="text-sm text-gray-600">
-          Ein Claude Code Container startet in GitLab. Er liest das Jira-Ticket,
+          Ein Claude Code Container startet in GitHub Actions. Er liest das Jira-Ticket,
           holt Architektur-Kontext aus Confluence, liest den bestehenden Code
           und implementiert das Feature — inklusive Unit- und E2E-Tests.
         </p>
@@ -162,13 +162,13 @@ const STEPS = [
   },
   {
     number: '5',
-    title: 'Merge Request & Review',
-    subtitle: 'GitLab MR · Jira "Ready for Review"',
+    title: 'Pull Request & Review',
+    subtitle: 'GitHub PR · Jira "Fertig zur Abnahme"',
     color: 'bg-green-600',
     content: (
       <div className="space-y-2">
         <p className="text-sm text-gray-600">
-          GitLab Merge Request wird automatisch erstellt, Feature-Dokumentation
+          GitHub Pull Request wird automatisch erstellt, Feature-Dokumentation
           committet und das Jira-Ticket auf "Ready for Review" gesetzt.
           Ab hier uebernimmt ein Mensch: Code reviewen, Anmerkungen machen, mergen.
         </p>
@@ -180,7 +180,7 @@ const STEPS = [
                 : GITLAB_URL
             }
           >
-            Merge Requests anzeigen
+            Pull Requests anzeigen
           </ExternalLink>
           <ExternalLink href={JIRA_URL ? `${JIRA_URL}/jira/software/projects` : undefined}>
             Jira Board anzeigen
@@ -211,7 +211,7 @@ export function WorkflowGuide() {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Agentischer Entwicklungs-Workflow</h2>
-            <p className="text-xs text-gray-500">Von der Anforderung zum Merge Request — vollautomatisch</p>
+            <p className="text-xs text-gray-500">Von der Anforderung zum Pull Request — vollautomatisch</p>
           </div>
         </div>
         <svg
@@ -260,7 +260,7 @@ export function WorkflowGuide() {
               <div className="flex-1">
                 <p className="text-xs font-semibold text-amber-800 mb-2">Demo zuruecksetzen</p>
                 <p className="text-xs text-amber-700 mb-2">
-                  Startet eine Pipeline die Feature-Branches loescht, offene Merge Requests schliesst
+                  Startet eine Pipeline die Feature-Branches loescht, offene Pull Requests schliesst
                   und die Datenbank auf den Seed-Stand zuruecksetzt.
                 </p>
                 <div className="bg-white rounded border border-amber-200 p-2 space-y-1">
