@@ -156,7 +156,8 @@ jobs:
       - name: Playwright installieren
         run: |
           npm install -D "@playwright/test@1.44.0"
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
+          sudo npx playwright install-deps chromium || true
 
       - name: E2E-Tests ausfuehren
         run: FRONTEND_URL=http://localhost:5173 npx playwright test --reporter=list
@@ -362,7 +363,7 @@ jobs:
             "${JIRA_URL}/rest/api/3/issue/${JIRA_TICKET_ID}/comment" \
             -d "{\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Pull Request erstellt: ${PR_URL}\"}]}]}}" || true
           TRANSITIONS=$(curl -sf -u "${JIRA_USER}:${JIRA_TOKEN}" \
-            "${JIRA_URL}/rest/api/3/issue/${JIRA_TICKET_ID}/transitions")
+            "${JIRA_URL}/rest/api/3/issue/${JIRA_TICKET_ID}/transitions" || echo '{}')
           TRANSITION_ID=$(echo "$TRANSITIONS" | python3 -c "
           import sys,json
           for t in json.load(sys.stdin).get('transitions',[]):
