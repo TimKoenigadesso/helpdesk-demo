@@ -8,22 +8,40 @@ const QUICK_TEMPLATES = [
   { label: '💻 Software', title: 'Software-Fehler oder Absturz', description: '' },
 ];
 
+const PRIORITIES = [
+  { value: 'low', label: '🟢 Niedrig', description: 'Kein zeitkritischer Handlungsbedarf' },
+  { value: 'medium', label: '🟡 Mittel', description: 'Normaler Bearbeitungsfluss' },
+  { value: 'high', label: '🟠 Hoch', description: 'Dringend, baldige Bearbeitung erforderlich' },
+  { value: 'critical', label: '🔴 Kritisch', description: 'Sofortiger Handlungsbedarf' },
+];
+
 interface Props { onCreated: () => void; }
 
 export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('medium');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [priorityError, setPriorityError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) return;
+
+    // Priorität validieren (Pflichtfeld mit Standardwert, sollte immer gesetzt sein)
+    if (!priority) {
+      setPriorityError('Bitte wähle eine Priorität aus.');
+      return;
+    }
+    setPriorityError('');
+
     setLoading(true);
     try {
-      await api.createTicket({ title, description });
+      await api.createTicket({ title, description, priority });
       setTitle('');
       setDescription('');
+      setPriority('medium');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -84,6 +102,45 @@ export function TicketForm({ onCreated }: Props) {
             focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
             resize-none placeholder-gray-400"
         />
+
+        {/* Prioritäts-Dropdown */}
+        <div className="mb-4">
+          <label
+            htmlFor="ticket-priority"
+            className="block text-xs font-semibold text-gray-600 mb-1.5"
+          >
+            Priorität <span className="text-gray-400 font-normal">(Standard: Mittel)</span>
+          </label>
+          <select
+            id="ticket-priority"
+            value={priority}
+            onChange={(e) => {
+              setPriority(e.target.value);
+              setPriorityError('');
+            }}
+            required
+            data-testid="ticket-priority"
+            className={`block w-full px-4 py-2.5 rounded-xl border text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              bg-white appearance-none cursor-pointer
+              ${priorityError ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+          >
+            {PRIORITIES.map(p => (
+              <option key={p.value} value={p.value}>
+                {p.label} — {p.description}
+              </option>
+            ))}
+          </select>
+          {priorityError && (
+            <p
+              data-testid="priority-error"
+              className="mt-1 text-xs text-red-600 font-medium"
+            >
+              {priorityError}
+            </p>
+          )}
+        </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           <button
             type="submit"

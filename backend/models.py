@@ -7,6 +7,7 @@ VALID_CATEGORIES = {"bug", "feature", "question", "access", "infrastructure", "u
 class TicketCreate(BaseModel):
     title: str
     description: str
+    priority: Optional[str] = "medium"
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None

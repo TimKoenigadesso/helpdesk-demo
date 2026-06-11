@@ -111,12 +111,142 @@ def test_analyze_ticket_not_found():
     assert r.status_code == 404
 
 def test_analyze_ticket_fallback():
-    # Ohne Vertex-Credentials: Mock-Antwort
+    # Ohne Vertex-Credentials: Mock-Antwort (ANTHROPIC_VERTEX_PROJECT_ID wird entfernt,
+    # damit kein echter Vertex-API-Call ausgeloest wird)
+    import os
+    from unittest.mock import patch
     created = client.post("/tickets", json={"title": "Fallback Test", "description": "Desc"}).json()
-    # ANTHROPIC_VERTEX_PROJECT_ID ist in Tests nicht gesetzt → Fallback greift
-    r = client.post(f"/tickets/{created['id']}/analyze")
+    with patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("ANTHROPIC_VERTEX_PROJECT_ID", None)
+        r = client.post(f"/tickets/{created['id']}/analyze")
     assert r.status_code == 200
     data = r.json()
     assert data["category"] in {"bug", "feature", "question", "access", "infrastructure", "uncategorized"}
     assert data["priority"] in {"low", "medium", "high", "critical"}
     assert data["ai_suggestion"] is not None
+
+# ── AGSDLC-5: Prioritätsfeld im Melde-Formular ────────────────────────────────
+
+def test_create_ticket_with_priority_low():
+    """Ticket mit explizit gesetzter Priorität 'low' erstellen."""
+    r = client.post("/tickets", json={
+        "title": "Prio Low Test",
+        "description": "Priorität niedrig",
+        "priority": "low",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["priority"] == "low"
+
+
+def test_create_ticket_with_priority_high():
+    """Ticket mit explizit gesetzter Priorität 'high' erstellen."""
+    r = client.post("/tickets", json={
+        "title": "Prio High Test",
+        "description": "Priorität hoch",
+        "priority": "high",
+    })
+    assert r.status_code == 201
+    assert r.json()["priority"] == "high"
+
+
+def test_create_ticket_with_priority_critical():
+    """Ticket mit explizit gesetzter Priorität 'critical' erstellen."""
+    r = client.post("/tickets", json={
+        "title": "Prio Critical Test",
+        "description": "Priorität kritisch",
+        "priority": "critical",
+    })
+    assert r.status_code == 201
+    assert r.json()["priority"] == "critical"
+
+
+def test_create_ticket_with_priority_medium_explicit():
+    """Ticket mit explizit gesetzter Priorität 'medium' erstellen."""
+    r = client.post("/tickets", json={
+        "title": "Prio Medium Test",
+        "description": "Priorität mittel",
+        "priority": "medium",
+    })
+    assert r.status_code == 201
+    assert r.json()["priority"] == "medium"
+
+
+def test_create_ticket_default_priority_is_medium():
+    """Wird keine Priorität übergeben, soll der Standardwert 'medium' gesetzt werden."""
+    r = client.post("/tickets", json={
+        "title": "Default Priority Test",
+        "description": "Kein Prioritätsfeld übergeben",
+    })
+    assert r.status_code == 201
+    assert r.json()["priority"] == "medium"
+
+
+def test_create_ticket_invalid_priority_rejected():
+    """Eine ungültige Priorität muss mit HTTP 422 abgelehnt werden."""
+    r = client.post("/tickets", json={
+        "title": "Invalid Priority Test",
+        "description": "Ungültige Priorität",
+        "priority": "super-ultra",
+    })
+    assert r.status_code == 422
+
+
+def test_priority_persisted_and_visible_in_list():
+    """Die gespeicherte Priorität muss in der Ticket-Liste sichtbar sein."""
+    client.post("/tickets", json={
+        "title": "Persistenz-Test",
+        "description": "Priorität prüfen",
+        "priority": "critical",
+    })
+    tickets = client.get("/tickets").json()
+    found = next((t for t in tickets if t["title"] == "Persistenz-Test"), None)
+    assert found is not None
+    assert found["priority"] == "critical"
+
+
+def test_priority_persisted_and_readable_via_get():
+    """Priorität muss per GET /tickets/{id} korrekt zurückgegeben werden."""
+    created = client.post("/tickets", json={
+        "title": "GET Priorität Test",
+        "description": "Priorität über GET abrufen",
+        "priority": "high",
+    }).json()
+    fetched = client.get(f"/tickets/{created['id']}").json()
+    assert fetched["priority"] == "high"
+
+
+def test_priority_update_all_valid_values():
+    """Alle gültigen Prioritätswerte müssen über PUT akzeptiert und gespeichert werden."""
+    created = client.post("/tickets", json={
+        "title": "Update-Prio-Test",
+        "description": "Alle Werte testen",
+    }).json()
+    ticket_id = created["id"]
+
+    for prio in ("low", "medium", "high", "critical"):
+        r = client.put(f"/tickets/{ticket_id}", json={"priority": prio})
+        assert r.status_code == 200, f"Priorität '{prio}' sollte akzeptiert werden"
+        assert r.json()["priority"] == prio
+
+
+def test_priority_update_invalid_value_rejected():
+    """Ungültige Prioritätswerte bei PUT müssen mit HTTP 422 abgelehnt werden."""
+    created = client.post("/tickets", json={
+        "title": "Update-Invalid-Prio",
+        "description": "Ungültiger Wert",
+    }).json()
+    r = client.put(f"/tickets/{created['id']}", json={"priority": "notapriority"})
+    assert r.status_code == 422
+
+
+def test_priority_unchanged_after_status_update():
+    """Eine Statusänderung darf die Priorität nicht überschreiben."""
+    created = client.post("/tickets", json={
+        "title": "Status vs Prio Test",
+        "description": "Priorität bleibt erhalten",
+        "priority": "critical",
+    }).json()
+    r = client.put(f"/tickets/{created['id']}", json={"status": "closed"})
+    assert r.status_code == 200
+    assert r.json()["priority"] == "critical"
