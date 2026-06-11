@@ -338,11 +338,7 @@ jobs:
             --json url --jq '.[0].url' 2>/dev/null || echo "")
           APP_URL="https://helpdesk-demo-frontend-781137566329.europe-west3.run.app"
           if [ -z "$PR_URL" ]; then
-            BODY="Automatisch generiert von Claude Code.
-
-**Jira:** ${JIRA_URL}/browse/${JIRA_TICKET_ID}
-**Live-App:** ${APP_URL}
-**Pipeline:** ${RUN_URL}"
+            BODY="Automatisch generiert von Claude Code. Jira: ${JIRA_URL}/browse/${JIRA_TICKET_ID} | Live-App: ${APP_URL} | Pipeline: ${RUN_URL}"
             PR_URL=$(gh pr create \
               --title "[${JIRA_TICKET_ID}] Automatisch implementiert durch Claude Code" \
               --body "$BODY" \
