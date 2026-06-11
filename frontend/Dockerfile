@@ -2,6 +2,7 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
+# v2 — User Portal + Admin Backend
 COPY . .
 ARG VITE_API_URL=http://localhost:8000
 ARG VITE_JIRA_URL=""
