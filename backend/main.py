@@ -45,10 +45,11 @@ def list_tickets():
 
 @app.post("/tickets", response_model=Ticket, status_code=201)
 def create_ticket(ticket: TicketCreate):
+    priority = ticket.priority if ticket.priority in VALID_PRIORITIES else "medium"
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO tickets (title, description) VALUES (?, ?) RETURNING *",
-            (ticket.title, ticket.description),
+            "INSERT INTO tickets (title, description, priority) VALUES (?, ?, ?) RETURNING *",
+            (ticket.title, ticket.description, priority),
         )
         row = cur.fetchone()
     return dict(row)

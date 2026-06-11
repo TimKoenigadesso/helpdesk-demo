@@ -121,6 +121,76 @@ test.describe('Helpdesk App', () => {
     await expect(ticketItem.getByTestId('comment-toggle')).toContainText('1');
   });
 
+  // ── Prioritäts-Feature-Tests (AGSDLC-6) ────────────────────────────────────
+
+  test('Prioritäts-Dropdown ist im Formular sichtbar und hat Standardwert Mittel', async ({ page }) => {
+    await page.goto(BASE);
+    const prioritySelect = page.getByTestId('ticket-priority');
+    await expect(prioritySelect).toBeVisible();
+    await expect(prioritySelect).toHaveValue('medium');
+  });
+
+  test('Alle vier Prioritätsstufen sind im Dropdown wählbar', async ({ page }) => {
+    await page.goto(BASE);
+    const prioritySelect = page.getByTestId('ticket-priority');
+    await expect(prioritySelect.locator('option[value="low"]')).toHaveText('Niedrig');
+    await expect(prioritySelect.locator('option[value="medium"]')).toHaveText('Mittel');
+    await expect(prioritySelect.locator('option[value="high"]')).toHaveText('Hoch');
+    await expect(prioritySelect.locator('option[value="critical"]')).toHaveText('Kritisch');
+  });
+
+  test('Ticket mit Priorität Hoch erstellen und Badge prüfen', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Hoch-Prio Ticket');
+    await page.getByTestId('ticket-description').fill('Dringend, bitte schnell');
+    await page.getByTestId('ticket-priority').selectOption('high');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Hoch-Prio Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // PriorityBadge zeigt "Hoch"
+    await expect(ticketItem.getByText('Hoch')).toBeVisible();
+  });
+
+  test('Ticket mit Priorität Niedrig erstellen und Badge prüfen', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Niedrig-Prio Ticket');
+    await page.getByTestId('ticket-description').fill('Keine Eile');
+    await page.getByTestId('ticket-priority').selectOption('low');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Niedrig-Prio Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByText('Niedrig')).toBeVisible();
+  });
+
+  test('Ticket mit Priorität Kritisch wird visuell hervorgehoben', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Kritisches Ticket');
+    await page.getByTestId('ticket-description').fill('Server down, alles kaputt');
+    await page.getByTestId('ticket-priority').selectOption('critical');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Kritisches Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // Kritisch-Banner sichtbar
+    await expect(ticketItem.getByTestId('critical-banner')).toBeVisible();
+    // PriorityBadge zeigt "Kritisch"
+    await expect(ticketItem.getByText('Kritisch')).toBeVisible();
+  });
+
+  test('Ohne manuelle Auswahl wird Priorität Mittel gesetzt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Default Prio Ticket');
+    await page.getByTestId('ticket-description').fill('Keine Priorität gewählt');
+    // Kein selectOption → bleibt auf medium
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Default Prio Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByText('Mittel')).toBeVisible();
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 

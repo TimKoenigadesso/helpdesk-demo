@@ -8,11 +8,19 @@ const QUICK_TEMPLATES = [
   { label: '💻 Software', title: 'Software-Fehler oder Absturz', description: '' },
 ];
 
+const PRIORITY_OPTIONS = [
+  { value: 'low',      label: 'Niedrig',  style: 'text-blue-700' },
+  { value: 'medium',   label: 'Mittel',   style: 'text-yellow-700' },
+  { value: 'high',     label: 'Hoch',     style: 'text-orange-700' },
+  { value: 'critical', label: 'Kritisch', style: 'text-red-700' },
+];
+
 interface Props { onCreated: () => void; }
 
 export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('medium');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -21,9 +29,10 @@ export function TicketForm({ onCreated }: Props) {
     if (!title.trim() || !description.trim()) return;
     setLoading(true);
     try {
-      await api.createTicket({ title, description });
+      await api.createTicket({ title, description, priority });
       setTitle('');
       setDescription('');
+      setPriority('medium');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -80,10 +89,36 @@ export function TicketForm({ onCreated }: Props) {
           required
           rows={3}
           data-testid="ticket-description"
-          className="block w-full mb-4 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
+          className="block w-full mb-3 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
             focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
             resize-none placeholder-gray-400"
         />
+
+        {/* Prioritäts-Auswahl */}
+        <div className="mb-4">
+          <label
+            htmlFor="ticket-priority"
+            className="block text-xs font-semibold text-gray-500 mb-1.5"
+          >
+            Priorität
+          </label>
+          <select
+            id="ticket-priority"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            data-testid="ticket-priority"
+            className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              bg-white text-gray-700"
+          >
+            {PRIORITY_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           <button
             type="submit"
