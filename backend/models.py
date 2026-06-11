@@ -8,6 +8,7 @@ VALID_AUTHORS = {"Mitarbeiter", "IT-Admin"}
 class TicketCreate(BaseModel):
     title: str
     description: str
+    priority: Optional[str] = "medium"
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None

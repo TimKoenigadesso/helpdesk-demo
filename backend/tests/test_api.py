@@ -83,6 +83,78 @@ def test_update_ticket_invalid_priority():
     r = client.put(f"/tickets/{created['id']}", json={"priority": "ultra"})
     assert r.status_code == 422
 
+# ── Prioritäts-Feature-Tests (AGSDLC-6) ──────────────────────────────────────
+
+def test_create_ticket_with_priority_low():
+    """Ticket mit Priorität 'low' erstellen."""
+    r = client.post("/tickets", json={"title": "Prio Low", "description": "Desc", "priority": "low"})
+    assert r.status_code == 201
+    assert r.json()["priority"] == "low"
+
+def test_create_ticket_with_priority_medium():
+    """Ticket mit Priorität 'medium' erstellen."""
+    r = client.post("/tickets", json={"title": "Prio Medium", "description": "Desc", "priority": "medium"})
+    assert r.status_code == 201
+    assert r.json()["priority"] == "medium"
+
+def test_create_ticket_with_priority_high():
+    """Ticket mit Priorität 'high' erstellen."""
+    r = client.post("/tickets", json={"title": "Prio High", "description": "Desc", "priority": "high"})
+    assert r.status_code == 201
+    assert r.json()["priority"] == "high"
+
+def test_create_ticket_with_priority_critical():
+    """Ticket mit Priorität 'critical' erstellen."""
+    r = client.post("/tickets", json={"title": "Prio Critical", "description": "Desc", "priority": "critical"})
+    assert r.status_code == 201
+    assert r.json()["priority"] == "critical"
+
+def test_create_ticket_default_priority_is_medium():
+    """Ohne Priorität wird automatisch 'medium' gesetzt."""
+    r = client.post("/tickets", json={"title": "Default Prio", "description": "Desc"})
+    assert r.status_code == 201
+    assert r.json()["priority"] == "medium"
+
+def test_create_ticket_invalid_priority_falls_back_to_medium():
+    """Ungültige Priorität wird auf 'medium' zurückgesetzt."""
+    r = client.post("/tickets", json={"title": "Bad Prio", "description": "Desc", "priority": "extreme"})
+    assert r.status_code == 201
+    assert r.json()["priority"] == "medium"
+
+def test_priority_visible_in_list():
+    """Gespeicherte Priorität erscheint in der Ticket-Übersichtsliste."""
+    client.post("/tickets", json={"title": "List Prio Test", "description": "Desc", "priority": "high"})
+    tickets = client.get("/tickets").json()
+    prio_ticket = next((t for t in tickets if t["title"] == "List Prio Test"), None)
+    assert prio_ticket is not None
+    assert prio_ticket["priority"] == "high"
+
+def test_priority_visible_in_detail():
+    """Gespeicherte Priorität erscheint in der Ticket-Detailansicht."""
+    created = client.post("/tickets", json={"title": "Detail Prio Test", "description": "Desc", "priority": "critical"}).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["priority"] == "critical"
+
+def test_update_priority_low_to_critical():
+    """Priorität von 'low' auf 'critical' ändern."""
+    created = client.post("/tickets", json={"title": "Change Prio", "description": "Desc", "priority": "low"}).json()
+    assert created["priority"] == "low"
+    updated = client.put(f"/tickets/{created['id']}", json={"priority": "critical"}).json()
+    assert updated["priority"] == "critical"
+
+def test_update_priority_critical_to_low():
+    """Priorität von 'critical' auf 'low' ändern."""
+    created = client.post("/tickets", json={"title": "Downgrade Prio", "description": "Desc", "priority": "critical"}).json()
+    updated = client.put(f"/tickets/{created['id']}", json={"priority": "low"}).json()
+    assert updated["priority"] == "low"
+
+def test_all_priority_values_are_valid():
+    """Alle vier Prioritätsstufen sind gültig und werden korrekt gespeichert."""
+    for prio in ["low", "medium", "high", "critical"]:
+        r = client.post("/tickets", json={"title": f"Prio {prio}", "description": "Desc", "priority": prio})
+        assert r.status_code == 201
+        assert r.json()["priority"] == prio
+
 def test_analyze_ticket():
     import sys
     from unittest.mock import MagicMock, patch
