@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env['VITE_API_URL'] ?? 'http://localhost:8000';
+const API_BASE =
+  import.meta.env['VITE_API_URL'] ??
+  'https://helpdesk-demo-backend-781137566329.europe-west3.run.app';
 
 export interface Ticket {
   id: number;

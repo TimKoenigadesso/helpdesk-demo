@@ -6,7 +6,9 @@ import { AdminStats } from './components/AdminStats';
 import { AdminFilter, FilterState } from './components/AdminFilter';
 import { ExtensionSuggestions } from './components/ExtensionSuggestions';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const BASE_URL =
+  import.meta.env.VITE_API_URL ??
+  'https://helpdesk-demo-backend-781137566329.europe-west3.run.app';
 
 type View = 'user' | 'admin';
 
