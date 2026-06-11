@@ -1,5 +1,7 @@
 import json
 import os
+import threading
+import urllib.request
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db, get_conn
@@ -169,9 +171,35 @@ SEED_TICKETS = [
     },
 ]
 
+def _trigger_reset_pipeline() -> None:
+    """Triggert reset-demo Pipeline asynchron (fire & forget)."""
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        return
+    payload = json.dumps({
+        "ref": "main",
+        "inputs": {"pipeline_type": "reset-demo", "jira_ticket_id": ""}
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.github.com/repos/TimKoenigadesso/helpdesk-demo/actions/workflows/pipeline.yml/dispatches",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as e:
+        print(f"[reset] Pipeline-Trigger fehlgeschlagen: {e}")
+
+
 @app.post("/reset", status_code=200)
 def reset_demo():
-    """Setzt die Demo-DB zurück und befüllt sie mit Seed-Tickets."""
+    """Setzt die Demo-DB zurück, befüllt Seed-Tickets und startet v0-Redeploy-Pipeline."""
     with get_conn() as conn:
         conn.execute("DELETE FROM comments")
         conn.execute("DELETE FROM tickets")
@@ -185,7 +213,9 @@ def reset_demo():
                 "INSERT INTO tickets (title, description, status, category, priority) VALUES (?, ?, ?, ?, ?)",
                 (t["title"], t["description"], t["status"], t["category"], t["priority"]),
             )
-    return {"ok": True, "seeded": len(SEED_TICKETS)}
+    # v0-Code-Redeploy asynchron starten (dauert ~2-3 Min)
+    threading.Thread(target=_trigger_reset_pipeline, daemon=True).start()
+    return {"ok": True, "seeded": len(SEED_TICKETS), "pipeline": "reset-demo gestartet"}
 
 @app.post("/tickets/{ticket_id}/analyze", response_model=Ticket)
 def analyze_ticket(ticket_id: int):

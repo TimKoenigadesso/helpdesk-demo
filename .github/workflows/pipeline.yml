@@ -46,7 +46,13 @@ jobs:
           git config user.email "claude-code@adesso.de"
           git config user.name "Claude Code Agent"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
-          git checkout -b "feature/${JIRA_TICKET_ID}" 2>/dev/null || git checkout "feature/${JIRA_TICKET_ID}"
+          git fetch origin --prune --tags
+
+          # Feature-Branch IMMER von v0 branchen (saubere Basis, ohne gemergede KI-Features)
+          # Alten Branch loeschen falls vorhanden — verhindert Git-Konflikte bei Wiederholung
+          git push origin --delete "feature/${JIRA_TICKET_ID}" 2>/dev/null || true
+          git branch -D "feature/${JIRA_TICKET_ID}" 2>/dev/null || true
+          git checkout -b "feature/${JIRA_TICKET_ID}" v0
 
       - name: Jira-Ticket laden
         env:
