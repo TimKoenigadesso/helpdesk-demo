@@ -37,9 +37,12 @@ export default function App() {
   const handleReset = async () => {
     setResetting(true);
     try {
-      await fetch(`${BASE_URL}/reset`, { method: 'POST' });
+      const res = await fetch(`${BASE_URL}/reset`, { method: 'POST' });
+      const data = await res.json() as { ok?: boolean; pipeline?: string };
       setResetDone(true);
-      setTimeout(() => setResetDone(false), 2500);
+      // Pipeline läuft asynchron (~2 Min) — längere Bestätigung
+      const duration = data.pipeline ? 8000 : 2500;
+      setTimeout(() => setResetDone(false), duration);
       await load();
     } catch { /* ignore */ } finally { setResetting(false); }
   };
@@ -115,7 +118,7 @@ export default function App() {
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             <span className="hidden sm:inline">
-              {resetDone ? '✓ Reset' : 'Reset'}
+              {resetDone ? '✓ Daten + Code Reset (läuft ~2 Min)' : 'Demo zurücksetzen'}
             </span>
           </button>
         </div>
