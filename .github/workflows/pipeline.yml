@@ -412,25 +412,22 @@ jobs:
             gh pr close "$pr" 2>/dev/null && echo "PR #${pr} geschlossen" || true
           done
 
-      - name: Docker fuer Artifact Registry authentifizieren
-        run: gcloud auth configure-docker europe-west3-docker.pkg.dev --quiet
-
-      - name: App von main neu bauen und deployen
+      - name: App auf v0 zuruecksetzen (eingefrierter Demo-Stand)
         env:
           REGISTRY: europe-west3-docker.pkg.dev/adesso-genai-solunit-demo/aeh-services
-          BACKEND_URL: https://helpdesk-demo-backend-781137566329.europe-west3.run.app
         run: |
-          docker build -t "$REGISTRY/helpdesk-demo-backend:latest" ./backend
-          docker push "$REGISTRY/helpdesk-demo-backend:latest"
-          docker build \
-            --build-arg VITE_API_URL="$BACKEND_URL" \
-            -t "$REGISTRY/helpdesk-demo-frontend:latest" ./frontend
-          docker push "$REGISTRY/helpdesk-demo-frontend:latest"
+          # v0-Images sind eingefroren — kein Build noetig
           gcloud run deploy helpdesk-demo-backend \
-            --image "$REGISTRY/helpdesk-demo-backend:latest" \
+            --image "$REGISTRY/helpdesk-demo-backend:v0" \
             --region europe-west3 --allow-unauthenticated --quiet
           gcloud run deploy helpdesk-demo-frontend \
-            --image "$REGISTRY/helpdesk-demo-frontend:latest" \
+            --image "$REGISTRY/helpdesk-demo-frontend:v0" \
             --region europe-west3 --allow-unauthenticated --quiet
-          echo "App zurueck auf main deployt"
+          echo "App auf v0 zurueckgesetzt"
+
+      - name: Datenbank auf Seed-Stand zuruecksetzen
+        run: |
+          curl -sf -X POST \
+            "https://helpdesk-demo-backend-781137566329.europe-west3.run.app/reset" \
+            || echo "DB-Reset wird nach Deployment ausgefuehrt"
 
