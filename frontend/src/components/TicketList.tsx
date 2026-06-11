@@ -2,6 +2,7 @@ import { Ticket, api } from '../api';
 import { PriorityBadge } from './PriorityBadge';
 import { CategoryTag } from './CategoryTag';
 import { AiPanel } from './AiPanel';
+import { CommentSection } from './CommentSection';
 
 const PRIORITY_DOT: Record<string, string> = {
   critical: 'bg-red-500', high: 'bg-orange-400',
@@ -52,9 +53,12 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                   className="font-semibold text-gray-900 text-sm">
                   {t.title}
                 </span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                  t.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                }`}>
+                <span
+                  data-testid="ticket-status-badge"
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                    t.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
                   {t.status === 'open' ? 'Offen' : 'Geschlossen'}
                 </span>
                 <PriorityBadge priority={t.priority} />
@@ -94,6 +98,8 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
               )}
             </div>
           </div>
+
+          {/* KI-Analyse-Panel (nur für offene Tickets) */}
           {t.status === 'open' && (
             <AiPanel
               ticketId={t.id}
@@ -101,6 +107,9 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
               onAnalyzed={onUpdated}
             />
           )}
+
+          {/* Kommentar-Bereich (immer sichtbar) */}
+          <CommentSection ticketId={t.id} adminMode={adminMode} />
         </li>
       ))}
     </ul>

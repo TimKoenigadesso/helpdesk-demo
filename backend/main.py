@@ -3,7 +3,11 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db, get_conn
-from models import TicketCreate, TicketUpdate, Ticket, TicketAnalysis, VALID_PRIORITIES, VALID_CATEGORIES
+from models import (
+    TicketCreate, TicketUpdate, Ticket, TicketAnalysis,
+    CommentCreate, Comment,
+    VALID_PRIORITIES, VALID_CATEGORIES, VALID_AUTHORS,
+)
 from typing import List
 
 app = FastAPI(title="Helpdesk Demo API")
@@ -95,6 +99,52 @@ def delete_ticket(ticket_id: int):
             raise HTTPException(status_code=404, detail="Ticket not found")
         conn.execute("DELETE FROM tickets WHERE id = ?", (ticket_id,))
 
+# ── Kommentar-Routen ─────────────────────────────────────────────────────────
+
+@app.get("/tickets/{ticket_id}/comments", response_model=List[Comment])
+def list_comments(ticket_id: int):
+    """Alle Kommentare eines Tickets auflisten."""
+    with get_conn() as conn:
+        row = conn.execute("SELECT id FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        rows = conn.execute(
+            "SELECT * FROM comments WHERE ticket_id = ? ORDER BY created_at ASC",
+            (ticket_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+@app.post("/tickets/{ticket_id}/comments", response_model=Comment, status_code=201)
+def create_comment(ticket_id: int, comment: CommentCreate):
+    """Neuen Kommentar zu einem Ticket hinzufügen."""
+    if not comment.body.strip():
+        raise HTTPException(status_code=422, detail="Comment body must not be empty")
+    author = comment.author if comment.author in VALID_AUTHORS else "Mitarbeiter"
+    with get_conn() as conn:
+        row = conn.execute("SELECT id FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        cur = conn.execute(
+            "INSERT INTO comments (ticket_id, author, body) VALUES (?, ?, ?) RETURNING *",
+            (ticket_id, author, comment.body.strip()),
+        )
+        new_row = cur.fetchone()
+    return dict(new_row)
+
+@app.delete("/tickets/{ticket_id}/comments/{comment_id}", status_code=204)
+def delete_comment(ticket_id: int, comment_id: int):
+    """Kommentar löschen (nur Admin)."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM comments WHERE id = ? AND ticket_id = ?",
+            (comment_id, ticket_id),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        conn.execute("DELETE FROM comments WHERE id = ?", (comment_id,))
+
+# ── Seed-Daten & Demo-Reset ──────────────────────────────────────────────────
+
 SEED_TICKETS = [
     {
         "title": "VPN-Verbindung bricht nach ~5 Minuten ab",
@@ -122,9 +172,11 @@ SEED_TICKETS = [
 def reset_demo():
     """Setzt die Demo-DB zurück und befüllt sie mit Seed-Tickets."""
     with get_conn() as conn:
+        conn.execute("DELETE FROM comments")
         conn.execute("DELETE FROM tickets")
         try:
             conn.execute("DELETE FROM sqlite_sequence WHERE name='tickets'")
+            conn.execute("DELETE FROM sqlite_sequence WHERE name='comments'")
         except Exception:
             pass
         for t in SEED_TICKETS:
