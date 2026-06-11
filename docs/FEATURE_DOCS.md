@@ -1,76 +1,72 @@
-# Feature: Kommentar-System für Helpdesk-Tickets (AGSDLC-1)
+# Feature: Ticket-Prioritätsfunktion [AGSDLC-6]
 
 ## Was wurde implementiert
 
-- **Backend – Kommentar-API**: Drei neue REST-Endpunkte (`GET`, `POST`, `DELETE`) unter `/tickets/{id}/comments` mit vollständiger Pydantic-Validierung (`CommentCreate`, `Comment`) und Autor-Whitelist (`Mitarbeiter`, `IT-Admin`)
-- **Datenbank – `comments`-Tabelle**: Neue SQLite-Tabelle mit Fremdschlüssel-Relation zu `tickets` (`ON DELETE CASCADE`) sowie aktiviertem `PRAGMA foreign_keys = ON` für referentielle Integrität
-- **Frontend – `CommentSection`-Komponente**: Neue React-Komponente mit ein-/ausklappbarem Kommentarbereich, Kommentar-Zähler-Badge, rollenabhängiger Autorenkennung und Lösch-Funktion im Admin-Modus; in `TicketList` für jedes Ticket eingebunden
-- **Frontend – API-Client**: Drei neue Funktionen (`listComments`, `createComment`, `deleteComment`) inkl. `Comment`-Typ in `api.ts`
-- **Demo-Reset**: Der `/reset`-Endpunkt löscht nun vor dem Neu-Seeden auch alle Kommentare und setzt den `sqlite_sequence`-Zähler zurück
-
----
+- **Prioritätsstufen-Modell:** Vier Stufen (`low`, `medium`, `high`, `critical`) wurden end-to-end eingeführt — vom Datenmodell über die API bis zur UI.
+- **Backend-Validierung & Fallback:** `POST /tickets` akzeptiert ein optionales `priority`-Feld; ungültige Werte werden serverseitig auf `medium` zurückgesetzt, fehlende Werte ebenfalls.
+- **Prioritäts-Auswahl im Formular:** `TicketForm` enthält ein neues Dropdown (`data-testid="ticket-priority"`) mit Standardwert `medium`; der gewählte Wert wird beim Erstellen und nach dem Reset korrekt mitgesendet.
+- **Visuelle Darstellung in der Ticketliste:** `TicketList` zeigt je Ticket einen farbcodierten Priority-Dot und ein `PriorityBadge`. Kritische, offene Tickets erhalten zusätzlich roten Border/Ring/Hintergrund sowie ein prominentes Warn-Banner (`data-testid="critical-banner"`).
+- **API-Typ-Erweiterung:** `api.createTicket()` in `api.ts` akzeptiert nun das optionale Feld `priority?: string`.
 
 ## Neue API-Endpunkte
 
-| Methode  | Pfad                                          | Beschreibung                                       | Parameter / Body                                                                 |
-|----------|-----------------------------------------------|----------------------------------------------------|----------------------------------------------------------------------------------|
-| `GET`    | `/tickets/{ticket_id}/comments`               | Alle Kommentare eines Tickets (chronologisch)      | `ticket_id` (Path, int)                                                          |
-| `POST`   | `/tickets/{ticket_id}/comments`               | Neuen Kommentar anlegen                            | `ticket_id` (Path, int) · Body: `body` (str, 1–2000 Zeichen), `author` (str, optional, Default: `"Mitarbeiter"`) |
-| `DELETE` | `/tickets/{ticket_id}/comments/{comment_id}`  | Kommentar löschen (nur Admin)                      | `ticket_id`, `comment_id` (Path, int)                                            |
+Kein neuer Endpunkt — bestehender Endpunkt wurde erweitert:
 
-**Validierungsregeln:**
-- `body` darf nach Strip nicht leer sein → `422 Unprocessable Entity`
-- Ungültiger `author`-Wert wird automatisch auf `"Mitarbeiter"` zurückgesetzt (Whitelist: `Mitarbeiter`, `IT-Admin`)
-- Nicht gefundenes Ticket oder Kommentar → `404 Not Found`
-
----
+| Methode | Pfad | Beschreibung | Parameter |
+|---------|------|--------------|-----------|
+| `POST` | `/tickets` | Ticket erstellen | `title: str` (required), `description: str` (required), `priority?: str` (optional, Default: `"medium"`, gültig: `low` \| `medium` \| `high` \| `critical`) |
+| `PUT` | `/tickets/{id}` | Ticket aktualisieren | `priority?: str` — Priorität nachträglich ändern (bereits vor diesem Feature vorhanden, jetzt vollständig getestet) |
+| `GET` | `/tickets` | Ticket-Liste | Antwort enthält jetzt für jedes Ticket das Feld `priority` |
+| `GET` | `/tickets/{id}` | Ticket-Detail | Antwort enthält jetzt das Feld `priority` |
 
 ## Tests
 
-### Backend – Pytest (`backend/tests/test_api.py`) — 14 neue Tests
+### Backend — `backend/tests/test_api.py` (11 neue Unit-Tests)
 
-| Test | Was wird geprüft |
-|------|-----------------|
-| `test_list_comments_empty` | Leere Liste für neues Ticket (`[]`) |
-| `test_list_comments_ticket_not_found` | `404` bei unbekannter `ticket_id` |
-| `test_create_comment` | Erfolgreiche Erstellung, Rückgabe aller Felder (`id`, `body`, `author`, `ticket_id`, `created_at`) |
-| `test_create_comment_admin_author` | `IT-Admin` als Autor wird korrekt gespeichert |
-| `test_create_comment_invalid_author_falls_back_to_mitarbeiter` | Ungültiger Autor → Fallback auf `"Mitarbeiter"` |
-| `test_create_comment_empty_body` | Leerer Body (nur Whitespace) → `422` |
-| `test_create_comment_ticket_not_found` | `404` bei unbekannter `ticket_id` |
-| `test_list_comments_returns_all` | Mehrere Kommentare werden in chronologischer Reihenfolge zurückgegeben |
-| `test_delete_comment` | Löschen erfolgreich (`204`), Kommentar danach nicht mehr in der Liste |
-| `test_delete_comment_not_found` | `404` bei unbekannter `comment_id` |
-| `test_delete_comment_wrong_ticket` | `404` wenn `comment_id` zu einem anderen Ticket gehört |
-| `test_delete_ticket_cascades_comments` | Ticket-Löschung kaskadiert auf Kommentare (FK `ON DELETE CASCADE`) |
-| `test_reset_clears_comments` | `/reset` löscht alle Kommentare; Seed-Tickets haben leere Kommentarlisten |
+| Testname | Was wird geprüft |
+|---|---|
+| `test_create_ticket_with_priority_low/medium/high/critical` | Alle vier gültigen Prioritätswerte werden korrekt gespeichert und in der Response zurückgegeben (HTTP 201). |
+| `test_create_ticket_default_priority_is_medium` | Fehlendes `priority`-Feld führt automatisch zu `"medium"`. |
+| `test_create_ticket_invalid_priority_falls_back_to_medium` | Ungültiger Wert (z. B. `"extreme"`) wird serverseitig auf `"medium"` normiert. |
+| `test_priority_visible_in_list` | Gespeicherte Priorität erscheint in `GET /tickets`. |
+| `test_priority_visible_in_detail` | Gespeicherte Priorität erscheint in `GET /tickets/{id}`. |
+| `test_update_priority_low_to_critical` | Priorität lässt sich per `PUT` hochsetzen. |
+| `test_update_priority_critical_to_low` | Priorität lässt sich per `PUT` runtersetzen. |
+| `test_all_priority_values_are_valid` | Parametrisierter Smoke-Test aller vier Stufen in einem Durchlauf. |
 
-### Frontend – Playwright E2E (`frontend/tests/helpdesk.spec.ts`) — 6 neue Tests + 2 aktualisierte Tests
+### Frontend E2E — `frontend/tests/helpdesk.spec.ts` (6 neue Playwright-Tests)
 
-| Test | Was wird geprüft |
-|------|-----------------|
-| `Kommentar-Bereich ist standardmäßig eingeklappt` | Toggle-Button sichtbar, `comment-list` initial nicht sichtbar |
-| `Kommentar-Bereich öffnen und "Noch keine Kommentare" sehen` | Nach Klick auf Toggle: `comment-list` + `no-comments`-Hinweis sichtbar |
-| `Kommentar erstellen und anzeigen` | Eingabe, Absenden, Darstellung von `body` und `author` im `comment-item` |
-| `Kommentar-Zähler im Toggle-Button erscheint nach Kommentar` | Nach Schließen des Bereichs zeigt der Toggle-Button die Kommentaranzahl |
-| `Admin kann Kommentar löschen` | Admin-Ansicht: Kommentar hinzufügen, per `comment-delete`-Button löschen, `no-comments` erscheint |
-| *(aktualisiert)* `Ticket erstellen` | Status-Badge via `data-testid="ticket-status-badge"` geprüft statt rohem `[open]`-String |
-| *(aktualisiert)* `Ticket schliessen` | Status-Badge ebenfalls über `data-testid` selektiert |
-
----
+| Testname | Was wird geprüft |
+|---|---|
+| `Prioritäts-Dropdown ist im Formular sichtbar und hat Standardwert Mittel` | Dropdown sichtbar, Default-Wert `medium`. |
+| `Alle vier Prioritätsstufen sind im Dropdown wählbar` | Optionen `low/medium/high/critical` mit korrekten Labels vorhanden. |
+| `Ticket mit Priorität Hoch erstellen und Badge prüfen` | Nach Submit zeigt das Ticket-Item den Text `"Hoch"` via `PriorityBadge`. |
+| `Ticket mit Priorität Niedrig erstellen und Badge prüfen` | Entsprechend `"Niedrig"`. |
+| `Ticket mit Priorität Kritisch wird visuell hervorgehoben` | `data-testid="critical-banner"` sichtbar, Badge zeigt `"Kritisch"`. |
+| `Ohne manuelle Auswahl wird Priorität Mittel gesetzt` | Default-Verhalten: Badge zeigt `"Mittel"`. |
 
 ## Deployment-Hinweise
 
-### Datenbank-Migration
-Die neue `comments`-Tabelle wird bei **jedem App-Start** automatisch via `CREATE TABLE IF NOT EXISTS` angelegt (`backend/database.py → init_db()`). **Kein manuelles Migrations-Skript erforderlich.**
+> **⚠️ DB-Migration erforderlich**, falls die Produktions-Datenbank bereits Tickets ohne `priority`-Spalte enthält.
 
-> ⚠️ **Wichtig für bestehende Produktiv-DBs:** `PRAGMA foreign_keys = ON` ist ab diesem Release aktiv. Sicherstellen, dass keine verwaisten Fremdschlüssel in der bestehenden `tickets`-Tabelle existieren, bevor deployed wird.
+### Datenbank
+
+Die Tabelle `tickets` benötigt die Spalte `priority`. Bei bestehenden Deployments folgendes SQL ausführen:
+
+```sql
+ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium';
+```
+
+Bei Nutzung des automatischen Schema-Setups (SQLite `CREATE TABLE IF NOT EXISTS`) reicht ein Neustart mit dem aktuellen `main.py`/`models.py`, sofern die DB noch leer ist — andernfalls ist das manuelle Alter-Statement notwendig.
 
 ### Neue Umgebungsvariablen
-Keine neuen Umgebungsvariablen erforderlich.
+
+Keine.
 
 ### Neue Abhängigkeiten
-Keine neuen Python- oder npm-Pakete; die Implementierung nutzt ausschließlich bereits vorhandene Dependencies (`FastAPI`, `Pydantic`, `SQLite`, `React`).
 
-### Demo-Reset
-Der `/reset`-Endpunkt löscht jetzt zuerst `comments`, dann `tickets` und setzt beide `sqlite_sequence`-Einträge zurück. Bestehende Seed-Daten bleiben unverändert; Kommentare werden nach einem Reset **nicht** neu befüllt.
+Keine neuen Packages — alle Änderungen nutzen ausschließlich bereits installierte Libraries (`FastAPI`, `Pydantic`, `React`, `Playwright`).
+
+### Seed-Daten
+
+Falls der Demo-Reset-Endpoint (`POST /reset`) genutzt wird: Seed-Daten sollten um das Feld `priority` ergänzt werden, damit repräsentative Beispieldaten für alle Stufen vorhanden sind.
