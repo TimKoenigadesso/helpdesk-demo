@@ -16,6 +16,7 @@ def init_db():
                 category TEXT NOT NULL DEFAULT 'uncategorized',
                 priority TEXT NOT NULL DEFAULT 'medium',
                 ai_suggestion TEXT,
+                reporter_name TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
@@ -25,6 +26,7 @@ def init_db():
             ("category", "TEXT NOT NULL DEFAULT 'uncategorized'"),
             ("priority", "TEXT NOT NULL DEFAULT 'medium'"),
             ("ai_suggestion", "TEXT"),
+            ("reporter_name", "TEXT"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} {definition}")

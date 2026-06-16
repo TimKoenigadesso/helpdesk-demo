@@ -43,8 +43,8 @@ def list_tickets():
 def create_ticket(ticket: TicketCreate):
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO tickets (title, description) VALUES (?, ?) RETURNING *",
-            (ticket.title, ticket.description),
+            "INSERT INTO tickets (title, description, reporter_name) VALUES (?, ?, ?) RETURNING *",
+            (ticket.title, ticket.description, ticket.reporter_name),
         )
         row = cur.fetchone()
     return dict(row)
@@ -76,6 +76,8 @@ def update_ticket(ticket_id: int, update: TicketUpdate):
         fields.append("priority = ?"); values.append(update.priority)
     if update.ai_suggestion is not None:
         fields.append("ai_suggestion = ?"); values.append(update.ai_suggestion)
+    if update.reporter_name is not None:
+        fields.append("reporter_name = ?"); values.append(update.reporter_name)
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     fields.append("updated_at = datetime('now')")

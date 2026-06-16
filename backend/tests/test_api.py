@@ -111,12 +111,101 @@ def test_analyze_ticket_not_found():
     assert r.status_code == 404
 
 def test_analyze_ticket_fallback():
-    # Ohne Vertex-Credentials: Mock-Antwort
+    # Ohne Vertex-Credentials (Variable entfernt): Mock-Fallback greift
+    from unittest.mock import patch
     created = client.post("/tickets", json={"title": "Fallback Test", "description": "Desc"}).json()
-    # ANTHROPIC_VERTEX_PROJECT_ID ist in Tests nicht gesetzt → Fallback greift
-    r = client.post(f"/tickets/{created['id']}/analyze")
+    # Variable explizit entfernen, damit der Fallback-Pfad im Backend ausgeloest wird
+    with patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("ANTHROPIC_VERTEX_PROJECT_ID", None)
+        r = client.post(f"/tickets/{created['id']}/analyze")
     assert r.status_code == 200
     data = r.json()
     assert data["category"] in {"bug", "feature", "question", "access", "infrastructure", "uncategorized"}
     assert data["priority"] in {"low", "medium", "high", "critical"}
     assert data["ai_suggestion"] is not None
+
+# ── AGSDLC-17: reporter_name Tests ──────────────────────────────────────────
+
+def test_create_ticket_with_reporter_name():
+    """Ticket mit Namen erstellen – Name wird persistent gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Reporter Test",
+        "description": "Beschreibung",
+        "reporter_name": "Max Mustermann",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] == "Max Mustermann"
+
+def test_create_ticket_without_reporter_name():
+    """Ticket ohne Namen erstellen – reporter_name ist None (optionales Feld)."""
+    r = client.post("/tickets", json={"title": "Kein Name", "description": "Desc"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] is None
+
+def test_reporter_name_persisted_and_retrievable():
+    """Name wird gespeichert und per GET wieder abrufbar."""
+    created = client.post("/tickets", json={
+        "title": "Persistenz Test",
+        "description": "Desc",
+        "reporter_name": "Erika Musterfrau",
+    }).json()
+    ticket_id = created["id"]
+
+    r = client.get(f"/tickets/{ticket_id}")
+    assert r.status_code == 200
+    assert r.json()["reporter_name"] == "Erika Musterfrau"
+
+def test_reporter_name_in_list():
+    """Name erscheint auch in der Ticket-Übersicht."""
+    client.post("/tickets", json={
+        "title": "List Test",
+        "description": "Desc",
+        "reporter_name": "Hans Müller",
+    })
+    r = client.get("/tickets")
+    assert r.status_code == 200
+    names = [t["reporter_name"] for t in r.json()]
+    assert "Hans Müller" in names
+
+def test_reporter_name_max_length_exceeded():
+    """Name mit mehr als 100 Zeichen wird mit 422 abgelehnt."""
+    long_name = "A" * 101
+    r = client.post("/tickets", json={
+        "title": "Zu langer Name",
+        "description": "Desc",
+        "reporter_name": long_name,
+    })
+    assert r.status_code == 422
+
+def test_reporter_name_max_length_exact():
+    """Name mit genau 100 Zeichen wird akzeptiert."""
+    exact_name = "B" * 100
+    r = client.post("/tickets", json={
+        "title": "Exakt 100 Zeichen",
+        "description": "Desc",
+        "reporter_name": exact_name,
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == exact_name
+
+def test_reporter_name_whitespace_only_stored_as_none():
+    """Ein Name aus nur Leerzeichen wird als None gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Whitespace Name",
+        "description": "Desc",
+        "reporter_name": "   ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] is None
+
+def test_reporter_name_stripped():
+    """Führende und nachfolgende Leerzeichen werden entfernt."""
+    r = client.post("/tickets", json={
+        "title": "Strip Test",
+        "description": "Desc",
+        "reporter_name": "  Anna Schmidt  ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == "Anna Schmidt"
