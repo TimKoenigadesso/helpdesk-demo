@@ -8,22 +8,47 @@ const QUICK_TEMPLATES = [
   { label: '💻 Software', title: 'Software-Fehler oder Absturz', description: '' },
 ];
 
+const PRIORITY_OPTIONS = [
+  { value: 'low',      label: '🔵 Niedrig' },
+  { value: 'medium',   label: '🟡 Mittel' },
+  { value: 'high',     label: '🟠 Hoch' },
+  { value: 'critical', label: '🔴 Kritisch' },
+];
+
 interface Props { onCreated: () => void; }
 
 export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [requesterName, setRequesterName] = useState('');
+  const [priority, setPriority] = useState('medium');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [nameError, setNameError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Frontend-Validierung: Name ist Pflichtfeld
+    if (!requesterName.trim()) {
+      setNameError('Bitte gib deinen vollständigen Namen ein.');
+      return;
+    }
+    setNameError('');
+
     if (!title.trim() || !description.trim()) return;
     setLoading(true);
     try {
-      await api.createTicket({ title, description });
+      await api.createTicket({
+        title,
+        description,
+        requester_name: requesterName.trim(),
+        priority,
+      });
       setTitle('');
       setDescription('');
+      setRequesterName('');
+      setPriority('medium');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -63,6 +88,35 @@ export function TicketForm({ onCreated }: Props) {
       </div>
 
       <form onSubmit={handleSubmit} className="px-6 pb-6">
+        {/* Name (Pflichtfeld) */}
+        <div className="mb-3">
+          <input
+            placeholder="Vollständiger Name *"
+            value={requesterName}
+            onChange={(e) => {
+              setRequesterName(e.target.value);
+              if (e.target.value.trim()) setNameError('');
+            }}
+            required
+            maxLength={100}
+            data-testid="ticket-requester-name"
+            className={`block w-full px-4 py-2.5 rounded-xl border text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              placeholder-gray-400 ${
+                nameError ? 'border-red-400 bg-red-50' : 'border-gray-200'
+              }`}
+          />
+          {nameError && (
+            <p
+              data-testid="name-error"
+              className="mt-1 text-xs text-red-600"
+            >
+              {nameError}
+            </p>
+          )}
+        </div>
+
+        {/* Titel */}
         <input
           placeholder="Kurze Beschreibung des Problems *"
           value={title}
@@ -73,6 +127,8 @@ export function TicketForm({ onCreated }: Props) {
             focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
             placeholder-gray-400"
         />
+
+        {/* Beschreibung */}
         <textarea
           placeholder="Was genau passiert? Fehlermeldung, Gerät, seit wann? *"
           value={description}
@@ -80,10 +136,32 @@ export function TicketForm({ onCreated }: Props) {
           required
           rows={3}
           data-testid="ticket-description"
-          className="block w-full mb-4 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
+          className="block w-full mb-3 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
             focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
             resize-none placeholder-gray-400"
         />
+
+        {/* Priorität */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            Priorität
+          </label>
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            data-testid="ticket-priority"
+            className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              bg-white text-gray-700"
+          >
+            {PRIORITY_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           <button
             type="submit"

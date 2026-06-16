@@ -25,8 +25,8 @@ def startup():
         with get_conn() as conn:
             for t in SEED_TICKETS:
                 conn.execute(
-                    "INSERT INTO tickets (title, description, status, category, priority) VALUES (?, ?, ?, ?, ?)",
-                    (t["title"], t["description"], t["status"], t["category"], t["priority"]),
+                    "INSERT INTO tickets (title, description, status, category, priority, requester_name) VALUES (?, ?, ?, ?, ?, ?)",
+                    (t["title"], t["description"], t["status"], t["category"], t["priority"], t.get("requester_name", "")),
                 )
 
 @app.get("/health")
@@ -43,8 +43,8 @@ def list_tickets():
 def create_ticket(ticket: TicketCreate):
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO tickets (title, description) VALUES (?, ?) RETURNING *",
-            (ticket.title, ticket.description),
+            "INSERT INTO tickets (title, description, priority, requester_name) VALUES (?, ?, ?, ?) RETURNING *",
+            (ticket.title, ticket.description, ticket.priority, ticket.requester_name),
         )
         row = cur.fetchone()
     return dict(row)
@@ -100,21 +100,25 @@ SEED_TICKETS = [
         "title": "VPN-Verbindung bricht nach ~5 Minuten ab",
         "description": "Seit dem letzten Windows-Update trennt sich der Cisco AnyConnect VPN nach ca. 5 Minuten Inaktivität. Beim erneuten Verbinden erscheint Fehler 'Authentication failed'. Betrifft mehrere Kollegen im Büro Hamburg.",
         "status": "open", "category": "infrastructure", "priority": "high",
+        "requester_name": "Max Mustermann",
     },
     {
         "title": "Passwort abgelaufen — Konto gesperrt",
         "description": "Nach Urlaub ist mein Windows-Konto gesperrt. Ich komme weder ins Active Directory noch in Outlook. Bitte Konto entsperren und temporäres Passwort setzen.",
         "status": "open", "category": "access", "priority": "high",
+        "requester_name": "Erika Musterfrau",
     },
     {
         "title": "Drucker im 3. OG druckt nur weiße Seiten",
         "description": "Der Netzwerkdrucker HP LaserJet M428 (IP 10.0.3.45) druckt seit heute Morgen nur leere Seiten. Toner wurde letzte Woche gewechselt. Testseite direkt am Gerät funktioniert korrekt.",
         "status": "open", "category": "infrastructure", "priority": "medium",
+        "requester_name": "Hans Schmidt",
     },
     {
         "title": "Excel kann keine .pdf-Dateien als Anhang öffnen",
         "description": "Wenn ich in Excel auf einen eingebetteten PDF-Anhang doppelklicke, erscheint die Fehlermeldung 'Das Programm kann nicht geöffnet werden'. Adobe Acrobat ist installiert. Betrifft nur Excel, in Outlook funktionieren PDFs normal.",
         "status": "open", "category": "bug", "priority": "low",
+        "requester_name": "Anna Müller",
     },
 ]
 
@@ -129,8 +133,8 @@ def reset_demo():
             pass
         for t in SEED_TICKETS:
             conn.execute(
-                "INSERT INTO tickets (title, description, status, category, priority) VALUES (?, ?, ?, ?, ?)",
-                (t["title"], t["description"], t["status"], t["category"], t["priority"]),
+                "INSERT INTO tickets (title, description, status, category, priority, requester_name) VALUES (?, ?, ?, ?, ?, ?)",
+                (t["title"], t["description"], t["status"], t["category"], t["priority"], t.get("requester_name", "")),
             )
     return {"ok": True, "seeded": len(SEED_TICKETS)}
 
