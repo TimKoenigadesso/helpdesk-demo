@@ -89,6 +89,10 @@ jobs:
         run: |
           git config --unset-all "http.https://github.com/.extraheader" || true
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git restore --source=origin/main -- .github/ 2>/dev/null || true
+          git add -A
+          git diff --cached --name-only | grep -v "^.github/" | xargs -r git add --intent-to-add 2>/dev/null || true
+          git checkout HEAD -- .github/ 2>/dev/null || true
           git push origin "feature/${JIRA_TICKET_ID}" --force
 
       - name: Jira Status auf In Implementierung setzen
@@ -228,6 +232,10 @@ jobs:
         run: |
           git config --unset-all "http.https://github.com/.extraheader" || true
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git restore --source=origin/main -- .github/ 2>/dev/null || true
+          git add -A
+          git diff --cached --name-only | grep -v "^.github/" | xargs -r git add --intent-to-add 2>/dev/null || true
+          git checkout HEAD -- .github/ 2>/dev/null || true
           git push origin "feature/${JIRA_TICKET_ID}" --force
 
       - name: Tests nach Fix verifizieren
