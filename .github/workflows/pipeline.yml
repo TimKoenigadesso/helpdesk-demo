@@ -83,8 +83,13 @@ jobs:
 
       - name: Feature-Branch pushen
         env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
-        run: git push origin "feature/${JIRA_TICKET_ID}" --force
+          REPO: ${{ github.repository }}
+        run: |
+          git config --unset-all "http.https://github.com/.extraheader" || true
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git push origin "feature/${JIRA_TICKET_ID}" --force
 
       - name: Jira Status auf In Implementierung setzen
         env:
@@ -220,7 +225,10 @@ jobs:
       - name: Fixes pushen
         env:
           JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
-        run: git push origin "feature/${JIRA_TICKET_ID}" --force
+        run: |
+          git config --unset-all "http.https://github.com/.extraheader" || true
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git push origin "feature/${JIRA_TICKET_ID}" --force
 
       - name: Tests nach Fix verifizieren
         env:
