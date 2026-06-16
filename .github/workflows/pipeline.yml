@@ -39,7 +39,7 @@ jobs:
 
       - name: Git konfigurieren
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           REPO: ${{ github.repository }}
           JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
         run: |
@@ -194,7 +194,7 @@ jobs:
 
       - name: Git konfigurieren
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           git config user.email "claude-code@adesso.de"
@@ -316,7 +316,7 @@ jobs:
 
       - name: Git konfigurieren
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           git config user.email "claude-code@adesso.de"
@@ -404,7 +404,7 @@ jobs:
 
       - name: Git konfigurieren und Feature-Branches loeschen
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           git config user.email "claude-code@adesso.de"
