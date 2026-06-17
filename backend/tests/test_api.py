@@ -345,3 +345,94 @@ def test_reset_clears_comments():
     for t in tickets:
         comments = client.get(f"/tickets/{t['id']}/comments").json()
         assert comments == []
+
+# ── Reporter-Name-Tests (AGSDLC-17) ──────────────────────────────────────────
+
+def test_create_ticket_with_reporter_name():
+    """Ticket mit reporter_name erstellen — Name wird persistiert."""
+    r = client.post("/tickets", json={
+        "title": "Name Test Ticket",
+        "description": "Beschreibung",
+        "reporter_name": "Max Mustermann",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] == "Max Mustermann"
+
+def test_create_ticket_without_reporter_name():
+    """Ticket ohne reporter_name → reporter_name ist None (optionales Feld)."""
+    r = client.post("/tickets", json={"title": "Kein Name", "description": "Desc"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] is None
+
+def test_create_ticket_reporter_name_whitespace_only():
+    """reporter_name aus nur Leerzeichen wird als None gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Whitespace Name",
+        "description": "Desc",
+        "reporter_name": "   ",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] is None
+
+def test_create_ticket_reporter_name_max_length():
+    """reporter_name mit exakt 100 Zeichen ist gültig."""
+    name_100 = "A" * 100
+    r = client.post("/tickets", json={
+        "title": "Max Length Name",
+        "description": "Desc",
+        "reporter_name": name_100,
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == name_100
+
+def test_create_ticket_reporter_name_too_long():
+    """reporter_name mit mehr als 100 Zeichen → 422 Validierungsfehler."""
+    name_101 = "A" * 101
+    r = client.post("/tickets", json={
+        "title": "Too Long Name",
+        "description": "Desc",
+        "reporter_name": name_101,
+    })
+    assert r.status_code == 422
+
+def test_reporter_name_visible_in_list():
+    """reporter_name erscheint in der Ticket-Übersichtsliste."""
+    client.post("/tickets", json={
+        "title": "List Name Test",
+        "description": "Desc",
+        "reporter_name": "Erika Musterfrau",
+    })
+    tickets = client.get("/tickets").json()
+    ticket = next((t for t in tickets if t["title"] == "List Name Test"), None)
+    assert ticket is not None
+    assert ticket["reporter_name"] == "Erika Musterfrau"
+
+def test_reporter_name_visible_in_detail():
+    """reporter_name erscheint in der Ticket-Detailansicht."""
+    created = client.post("/tickets", json={
+        "title": "Detail Name Test",
+        "description": "Desc",
+        "reporter_name": "Johann Schmidt",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["reporter_name"] == "Johann Schmidt"
+
+def test_reporter_name_trimmed_on_save():
+    """reporter_name wird beim Speichern von führenden/nachgestellten Leerzeichen bereinigt."""
+    r = client.post("/tickets", json={
+        "title": "Trim Name Test",
+        "description": "Desc",
+        "reporter_name": "  Anna Müller  ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == "Anna Müller"
+
+def test_ticket_without_name_has_null_reporter():
+    """Ticket ohne Namen hat reporter_name == None in Liste und Detail."""
+    created = client.post("/tickets", json={"title": "Anonym", "description": "Desc"}).json()
+    assert created["reporter_name"] is None
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["reporter_name"] is None
