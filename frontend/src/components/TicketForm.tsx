@@ -21,6 +21,7 @@ export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [reporterName, setReporterName] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -29,10 +30,16 @@ export function TicketForm({ onCreated }: Props) {
     if (!title.trim() || !description.trim()) return;
     setLoading(true);
     try {
-      await api.createTicket({ title, description, priority });
+      await api.createTicket({
+        title,
+        description,
+        priority,
+        reporter_name: reporterName.trim() || undefined,
+      });
       setTitle('');
       setDescription('');
       setPriority('medium');
+      setReporterName('');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -93,6 +100,23 @@ export function TicketForm({ onCreated }: Props) {
             focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
             resize-none placeholder-gray-400"
         />
+
+        {/* Name des Melders */}
+        <div className="mb-3">
+          <input
+            placeholder="Ihr Name (optional)"
+            value={reporterName}
+            onChange={(e) => setReporterName(e.target.value)}
+            maxLength={100}
+            data-testid="ticket-reporter-name"
+            className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              placeholder-gray-400"
+          />
+          <p className="mt-1 text-[10px] text-gray-400">
+            Optional — ermöglicht Rückfragen direkt an Sie zu richten
+          </p>
+        </div>
 
         {/* Prioritäts-Auswahl */}
         <div className="mb-4">

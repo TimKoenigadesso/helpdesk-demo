@@ -191,6 +191,52 @@ test.describe('Helpdesk App', () => {
     await expect(ticketItem.getByText('Mittel')).toBeVisible();
   });
 
+  // ── Reporter-Name-Tests (AGSDLC-17) ──────────────────────────────────────
+
+  test('Namensfeld ist im Meldeformular sichtbar und optional', async ({ page }) => {
+    await page.goto(BASE);
+    const nameInput = page.getByTestId('ticket-reporter-name');
+    await expect(nameInput).toBeVisible();
+    // Feld ist nicht required — Formular kann ohne Namen abgeschickt werden
+    await page.getByTestId('ticket-title').fill('Anonym Ticket');
+    await page.getByTestId('ticket-description').fill('Kein Name angegeben');
+    await page.getByTestId('ticket-submit').click();
+    await expect(page.getByText('Anonym Ticket')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('Ticket mit Namen erstellen — Name wird in Übersicht angezeigt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Meldung mit Name');
+    await page.getByTestId('ticket-description').fill('Detaillierte Problembeschreibung');
+    await page.getByTestId('ticket-reporter-name').fill('Max Mustermann');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Meldung mit Name' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // Name erscheint in der Ticket-Karte
+    await expect(ticketItem.getByTestId('ticket-reporter-name-display')).toBeVisible();
+    await expect(ticketItem.getByTestId('ticket-reporter-name-display')).toContainText('Max Mustermann');
+  });
+
+  test('Namensfeld hat Maxlänge 100 Zeichen', async ({ page }) => {
+    await page.goto(BASE);
+    const nameInput = page.getByTestId('ticket-reporter-name');
+    await expect(nameInput).toHaveAttribute('maxlength', '100');
+  });
+
+  test('Ticket ohne Namen — kein Namens-Display sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Namenlos Ticket');
+    await page.getByTestId('ticket-description').fill('Ohne Namenseingabe');
+    // Namensfeld leer lassen
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Namenlos Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // Kein reporter-name-display wenn kein Name angegeben
+    await expect(ticketItem.getByTestId('ticket-reporter-name-display')).not.toBeVisible();
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 
