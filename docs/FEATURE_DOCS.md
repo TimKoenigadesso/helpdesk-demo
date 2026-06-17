@@ -1,72 +1,77 @@
-# Feature: Ticket-Prioritätsfunktion [AGSDLC-6]
+# Feature: Melder-Name für Tickets (AGSDLC-17)
 
 ## Was wurde implementiert
 
-- **Prioritätsstufen-Modell:** Vier Stufen (`low`, `medium`, `high`, `critical`) wurden end-to-end eingeführt — vom Datenmodell über die API bis zur UI.
-- **Backend-Validierung & Fallback:** `POST /tickets` akzeptiert ein optionales `priority`-Feld; ungültige Werte werden serverseitig auf `medium` zurückgesetzt, fehlende Werte ebenfalls.
-- **Prioritäts-Auswahl im Formular:** `TicketForm` enthält ein neues Dropdown (`data-testid="ticket-priority"`) mit Standardwert `medium`; der gewählte Wert wird beim Erstellen und nach dem Reset korrekt mitgesendet.
-- **Visuelle Darstellung in der Ticketliste:** `TicketList` zeigt je Ticket einen farbcodierten Priority-Dot und ein `PriorityBadge`. Kritische, offene Tickets erhalten zusätzlich roten Border/Ring/Hintergrund sowie ein prominentes Warn-Banner (`data-testid="critical-banner"`).
-- **API-Typ-Erweiterung:** `api.createTicket()` in `api.ts` akzeptiert nun das optionale Feld `priority?: string`.
+- **Optionales `reporter_name`-Feld** in der Ticket-Erstellung: Nutzer können beim Einreichen eines Tickets ihren Vor- und Nachnamen angeben (max. 100 Zeichen).
+- **Backend-Validierung** über Pydantic (`max_length=100`): Whitespace-only-Eingaben werden serverseitig auf `None` normiert (`.strip()`), Namen mit > 100 Zeichen werden mit HTTP 422 abgelehnt.
+- **Datenbank-Migration** per `ALTER TABLE`: Die Spalte `reporter_name TEXT` wird beim Start der Anwendung automatisch zur bestehenden `tickets`-Tabelle hinzugefügt (idempotent via `try/except`).
+- **Frontend-Integration** in `TicketForm`: Neues Eingabefeld „Ihr Name (optional)" mit `maxlength="100"` und automatischem Trimming beim Absenden; leere Eingabe wird als `undefined` (kein Feld) übergeben.
+- **Anzeige in der Ticket-Liste** (`TicketList`): Sofern vorhanden, wird der Melder-Name mit einem Person-Icon als „Gemeldet von: \<Name\>" unterhalb der Beschreibung eingeblendet.
+
+---
 
 ## Neue API-Endpunkte
 
-Kein neuer Endpunkt — bestehender Endpunkt wurde erweitert:
+Es wurden keine neuen Routen eingeführt. Der bestehende Endpunkt wurde um das optionale Feld `reporter_name` erweitert:
 
 | Methode | Pfad | Beschreibung | Parameter |
 |---------|------|--------------|-----------|
-| `POST` | `/tickets` | Ticket erstellen | `title: str` (required), `description: str` (required), `priority?: str` (optional, Default: `"medium"`, gültig: `low` \| `medium` \| `high` \| `critical`) |
-| `PUT` | `/tickets/{id}` | Ticket aktualisieren | `priority?: str` — Priorität nachträglich ändern (bereits vor diesem Feature vorhanden, jetzt vollständig getestet) |
-| `GET` | `/tickets` | Ticket-Liste | Antwort enthält jetzt für jedes Ticket das Feld `priority` |
-| `GET` | `/tickets/{id}` | Ticket-Detail | Antwort enthält jetzt das Feld `priority` |
+| `POST` | `/tickets` | Ticket erstellen *(erweitert)* | **Body (JSON):** `title` *(string, required)*, `description` *(string, required)*, `priority` *(string, optional, default: `"medium"`)*, `reporter_name` *(string \| null, optional, max. 100 Zeichen)* |
+| `GET` | `/tickets` | Alle Tickets abrufen *(erweitert)* | — Response enthält nun `reporter_name: string \| null` pro Ticket |
+| `GET` | `/tickets/{id}` | Einzelnes Ticket abrufen *(erweitert)* | — Response enthält nun `reporter_name: string \| null` |
+
+**Response-Erweiterung** (`Ticket`-Schema): Das Antwort-Objekt aller Ticket-Endpunkte enthält das neue Feld:
+```json
+{
+  "id": 1,
+  "reporter_name": "Max Mustermann",
+  ...
+}
+```
+
+---
 
 ## Tests
 
-### Backend — `backend/tests/test_api.py` (11 neue Unit-Tests)
+### Backend – `backend/tests/test_api.py` (8 neue Unit-Tests)
 
 | Testname | Was wird geprüft |
-|---|---|
-| `test_create_ticket_with_priority_low/medium/high/critical` | Alle vier gültigen Prioritätswerte werden korrekt gespeichert und in der Response zurückgegeben (HTTP 201). |
-| `test_create_ticket_default_priority_is_medium` | Fehlendes `priority`-Feld führt automatisch zu `"medium"`. |
-| `test_create_ticket_invalid_priority_falls_back_to_medium` | Ungültiger Wert (z. B. `"extreme"`) wird serverseitig auf `"medium"` normiert. |
-| `test_priority_visible_in_list` | Gespeicherte Priorität erscheint in `GET /tickets`. |
-| `test_priority_visible_in_detail` | Gespeicherte Priorität erscheint in `GET /tickets/{id}`. |
-| `test_update_priority_low_to_critical` | Priorität lässt sich per `PUT` hochsetzen. |
-| `test_update_priority_critical_to_low` | Priorität lässt sich per `PUT` runtersetzen. |
-| `test_all_priority_values_are_valid` | Parametrisierter Smoke-Test aller vier Stufen in einem Durchlauf. |
+|----------|-----------------|
+| `test_create_ticket_with_reporter_name` | Name wird gespeichert und korrekt zurückgegeben (HTTP 201) |
+| `test_create_ticket_without_reporter_name` | Fehlendes Feld ergibt `reporter_name: null` im Response |
+| `test_reporter_name_visible_in_detail` | Name erscheint in der Detailansicht (`GET /tickets/{id}`) |
+| `test_reporter_name_visible_in_list` | Name erscheint in der Listenansicht (`GET /tickets`) |
+| `test_reporter_name_max_length` | Name mit exakt 100 Zeichen wird akzeptiert (Grenzwerttest) |
+| `test_reporter_name_too_long_rejected` | Name mit 101 Zeichen wird mit HTTP 422 abgelehnt |
+| `test_reporter_name_whitespace_only_stored_as_none` | Nur-Whitespace-Eingabe wird als `null` gespeichert |
+| `test_reporter_name_is_trimmed` | Führende/abschließende Leerzeichen werden server-seitig entfernt |
 
-### Frontend E2E — `frontend/tests/helpdesk.spec.ts` (6 neue Playwright-Tests)
+### Frontend (E2E) – `frontend/tests/helpdesk.spec.ts` (4 neue Playwright-Tests)
 
 | Testname | Was wird geprüft |
-|---|---|
-| `Prioritäts-Dropdown ist im Formular sichtbar und hat Standardwert Mittel` | Dropdown sichtbar, Default-Wert `medium`. |
-| `Alle vier Prioritätsstufen sind im Dropdown wählbar` | Optionen `low/medium/high/critical` mit korrekten Labels vorhanden. |
-| `Ticket mit Priorität Hoch erstellen und Badge prüfen` | Nach Submit zeigt das Ticket-Item den Text `"Hoch"` via `PriorityBadge`. |
-| `Ticket mit Priorität Niedrig erstellen und Badge prüfen` | Entsprechend `"Niedrig"`. |
-| `Ticket mit Priorität Kritisch wird visuell hervorgehoben` | `data-testid="critical-banner"` sichtbar, Badge zeigt `"Kritisch"`. |
-| `Ohne manuelle Auswahl wird Priorität Mittel gesetzt` | Default-Verhalten: Badge zeigt `"Mittel"`. |
+|----------|-----------------|
+| `Namensfeld ist im Formular sichtbar und optional` | Input ist im DOM vorhanden, Label enthält den Hinweis „(optional)" |
+| `Ticket mit Namen erstellen — Name wird in der Liste angezeigt` | Vollständiger Happy-Path: Eingabe → Absenden → `reporter-name`-Element mit korrektem Inhalt sichtbar |
+| `Ticket ohne Namen erstellen — kein Melder-Bereich sichtbar` | Kein `reporter-name`-Element sichtbar, wenn kein Name eingegeben wurde |
+| `Namensfeld hat maximale Länge von 100 Zeichen` | `maxlength`-Attribut ist korrekt auf `100` gesetzt |
+
+---
 
 ## Deployment-Hinweise
 
-> **⚠️ DB-Migration erforderlich**, falls die Produktions-Datenbank bereits Tickets ohne `priority`-Spalte enthält.
+### Datenbank-Migration
+Die Migration ist **automatisch und rückwärtskompatibel**. Beim ersten Start nach dem Deployment führt `init_db()` in `backend/database.py` ein `ALTER TABLE tickets ADD COLUMN reporter_name TEXT` aus. Der `try/except`-Block stellt sicher, dass bereits migrierte Datenbanken keinen Fehler werfen. **Kein manueller Eingriff nötig.**
 
-### Datenbank
-
-Die Tabelle `tickets` benötigt die Spalte `priority`. Bei bestehenden Deployments folgendes SQL ausführen:
-
-```sql
-ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium';
-```
-
-Bei Nutzung des automatischen Schema-Setups (SQLite `CREATE TABLE IF NOT EXISTS`) reicht ein Neustart mit dem aktuellen `main.py`/`models.py`, sofern die DB noch leer ist — andernfalls ist das manuelle Alter-Statement notwendig.
+> ⚠️ **SQLite-spezifisch:** Die Migration funktioniert direkt für die SQLite-basierte Entwicklungs- und Produktionsumgebung. Bei einem zukünftigen Wechsel zu PostgreSQL/MySQL muss eine explizite Alembic-Migration erstellt werden.
 
 ### Neue Umgebungsvariablen
-
 Keine.
 
 ### Neue Abhängigkeiten
+Keine – das Feature nutzt ausschließlich bereits vorhandene Bibliotheken (`FastAPI`, `Pydantic`, `React`, `Playwright`).
 
-Keine neuen Packages — alle Änderungen nutzen ausschließlich bereits installierte Libraries (`FastAPI`, `Pydantic`, `React`, `Playwright`).
-
-### Seed-Daten
-
-Falls der Demo-Reset-Endpoint (`POST /reset`) genutzt wird: Seed-Daten sollten um das Feld `priority` ergänzt werden, damit repräsentative Beispieldaten für alle Stufen vorhanden sind.
+### Frontend-Build
+Nach dem Deployment muss ein neuer Frontend-Build erzeugt werden, da `api.ts`, `TicketForm.tsx` und `TicketList.tsx` geändert wurden:
+```bash
+cd frontend && npm run build
+```
