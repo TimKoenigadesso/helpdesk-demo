@@ -6,10 +6,10 @@ const PRIORITY_STYLES: Record<string, string> = {
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Gering',
+  low: 'Niedrig',
   medium: 'Mittel',
-  high: 'Erhöht',
-  critical: 'Dringend',
+  high: 'Hoch',
+  critical: 'Kritisch',
 };
 
 interface Props {
