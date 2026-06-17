@@ -345,3 +345,83 @@ def test_reset_clears_comments():
     for t in tickets:
         comments = client.get(f"/tickets/{t['id']}/comments").json()
         assert comments == []
+
+# ── Melder-Name-Tests (AGSDLC-17) ────────────────────────────────────────────
+
+def test_create_ticket_with_reporter_name():
+    """Ticket mit Meldername wird korrekt gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Ticket mit Name",
+        "description": "Beschreibung",
+        "reporter_name": "Max Mustermann",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] == "Max Mustermann"
+
+def test_create_ticket_without_reporter_name():
+    """Ticket ohne Meldername: reporter_name ist None (optionales Feld)."""
+    r = client.post("/tickets", json={"title": "Kein Name", "description": "Beschreibung"})
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] is None
+
+def test_create_ticket_reporter_name_trimmed():
+    """Leerzeichen am Rand des Meldernamens werden entfernt."""
+    r = client.post("/tickets", json={
+        "title": "Trim Test",
+        "description": "Beschreibung",
+        "reporter_name": "  Erika Mustermann  ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == "Erika Mustermann"
+
+def test_create_ticket_reporter_name_max_length():
+    """Meldername wird auf 100 Zeichen gekürzt."""
+    long_name = "A" * 150
+    r = client.post("/tickets", json={
+        "title": "Langer Name",
+        "description": "Beschreibung",
+        "reporter_name": long_name,
+    })
+    assert r.status_code == 201
+    assert len(r.json()["reporter_name"]) == 100
+
+def test_create_ticket_reporter_name_whitespace_only_becomes_none():
+    """Nur-Leerzeichen-Name wird als None gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Leerzeichen Name",
+        "description": "Beschreibung",
+        "reporter_name": "   ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] is None
+
+def test_reporter_name_visible_in_detail():
+    """Meldername erscheint in der Ticket-Detailansicht."""
+    created = client.post("/tickets", json={
+        "title": "Detail Name Test",
+        "description": "Beschreibung",
+        "reporter_name": "Anna Schmidt",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["reporter_name"] == "Anna Schmidt"
+
+def test_reporter_name_visible_in_list():
+    """Meldername erscheint in der Ticket-Übersichtsliste."""
+    client.post("/tickets", json={
+        "title": "Listen Name Test",
+        "description": "Beschreibung",
+        "reporter_name": "Klaus Meier",
+    })
+    tickets = client.get("/tickets").json()
+    ticket = next((t for t in tickets if t["title"] == "Listen Name Test"), None)
+    assert ticket is not None
+    assert ticket["reporter_name"] == "Klaus Meier"
+
+def test_reporter_name_null_in_list_when_not_provided():
+    """Tickets ohne Meldername haben reporter_name == None in der Liste."""
+    client.post("/tickets", json={"title": "Kein Name Liste", "description": "Beschreibung"})
+    tickets = client.get("/tickets").json()
+    ticket = next((t for t in tickets if t["title"] == "Kein Name Liste"), None)
+    assert ticket is not None
+    assert ticket["reporter_name"] is None

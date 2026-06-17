@@ -86,6 +86,12 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                   )}
                 </div>
                 <p className="mt-1.5 text-sm text-gray-600 line-clamp-2">{t.description}</p>
+                {t.reporter_name && (
+                  <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                    <span className="text-gray-400">👤</span>
+                    <span data-testid="ticket-reporter-name-display">{t.reporter_name}</span>
+                  </p>
+                )}
                 {adminMode && (
                   <p className="mt-1 text-[10px] text-gray-400">
                     Erstellt: {new Date(t.created_at).toLocaleString('de-DE', {
