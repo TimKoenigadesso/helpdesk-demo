@@ -133,7 +133,6 @@ jobs:
     needs: implement
     if: github.event.inputs.pipeline_type == 'agentic-feature'
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
@@ -253,7 +252,7 @@ jobs:
 # ── DEPLOY ────────────────────────────────────────────────────────────────────
 
   deploy:
-    needs: test-unit
+    needs: [test-unit, test-e2e]
     if: always() && needs.test-unit.result == 'success'
     runs-on: ubuntu-latest
     env:
@@ -316,7 +315,7 @@ jobs:
 # ── FINALIZE ──────────────────────────────────────────────────────────────────
 
   create-pr:
-    needs: test-unit
+    needs: [test-unit, test-e2e]
     if: always() && needs.test-unit.result == 'success'
     runs-on: ubuntu-latest
     steps:
