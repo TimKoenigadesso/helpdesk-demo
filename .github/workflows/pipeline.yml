@@ -170,7 +170,7 @@ jobs:
 
       - name: Playwright installieren
         run: |
-          npm install -D "@playwright/test@1.44.0"
+          npm install -D "@playwright/test@1.49.1"
           npx playwright install --with-deps chromium
 
       - name: E2E-Tests ausfuehren
