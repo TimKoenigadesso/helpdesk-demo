@@ -460,10 +460,3 @@ jobs:
             --image "$REGISTRY/helpdesk-demo-frontend:v0" \
             --region europe-west3 --allow-unauthenticated --quiet
           echo "App auf v0 zurueckgesetzt"
-
-      - name: Datenbank auf Seed-Stand zuruecksetzen
-        run: |
-          curl -sf -X POST \
-            "https://helpdesk-demo-backend-781137566329.europe-west3.run.app/reset" \
-            || echo "DB-Reset wird nach Deployment ausgefuehrt"
-
