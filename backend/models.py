@@ -9,6 +9,8 @@ class TicketCreate(BaseModel):
     title: str
     description: str
     priority: Optional[str] = "medium"
+    first_name: Optional[str] = ""
+    last_name: Optional[str] = ""
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
@@ -17,6 +19,8 @@ class TicketUpdate(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     ai_suggestion: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 class Ticket(BaseModel):
     id: int
@@ -26,6 +30,8 @@ class Ticket(BaseModel):
     category: str = "uncategorized"
     priority: str = "medium"
     ai_suggestion: Optional[str] = None
+    first_name: str = ""
+    last_name: str = ""
     created_at: str
     updated_at: str
 

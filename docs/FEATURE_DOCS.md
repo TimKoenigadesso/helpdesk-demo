@@ -1,72 +1,77 @@
-# Feature: Ticket-Prioritätsfunktion [AGSDLC-6]
+# Feature: Submitter-Name & Prioritätssortierung bei Ticket-Erstellung (AGSDLC-20)
 
 ## Was wurde implementiert
 
-- **Prioritätsstufen-Modell:** Vier Stufen (`low`, `medium`, `high`, `critical`) wurden end-to-end eingeführt — vom Datenmodell über die API bis zur UI.
-- **Backend-Validierung & Fallback:** `POST /tickets` akzeptiert ein optionales `priority`-Feld; ungültige Werte werden serverseitig auf `medium` zurückgesetzt, fehlende Werte ebenfalls.
-- **Prioritäts-Auswahl im Formular:** `TicketForm` enthält ein neues Dropdown (`data-testid="ticket-priority"`) mit Standardwert `medium`; der gewählte Wert wird beim Erstellen und nach dem Reset korrekt mitgesendet.
-- **Visuelle Darstellung in der Ticketliste:** `TicketList` zeigt je Ticket einen farbcodierten Priority-Dot und ein `PriorityBadge`. Kritische, offene Tickets erhalten zusätzlich roten Border/Ring/Hintergrund sowie ein prominentes Warn-Banner (`data-testid="critical-banner"`).
-- **API-Typ-Erweiterung:** `api.createTicket()` in `api.ts` akzeptiert nun das optionale Feld `priority?: string`.
+- **Getrennte Vor-/Nachname-Felder im Ticket-Formular:** Nutzer können beim Erstellen eines Tickets optional ihren Vor- und Nachnamen angeben; beide Felder sind nicht verpflichtend (`required`-Attribut fehlt bewusst).
+- **Persistierung in der Datenbank:** Die Spalten `first_name` und `last_name` (SQLite `TEXT NOT NULL DEFAULT ''`) wurden per `ALTER TABLE`-Migration ergänzt – bestehende Tickets erhalten automatisch leere Strings als Default, die Rückwärtskompatibilität bleibt gewahrt.
+- **Anzeige in der Ticket-Liste:** Sind Vor- und/oder Nachname gesetzt, erscheint unter dem Ticket-Titel der Hinweis „Gemeldet von: \<Vorname\> \<Nachname\>"; ohne Namensangabe bleibt der Bereich vollständig ausgeblendet.
+- **Neue Sortieroption `priority_lastname`:** Der `GET /tickets`-Endpunkt unterstützt den Query-Parameter `sort=priority_lastname`, der Tickets primär nach Priorität (Critical → High → Medium → Low) und sekundär alphabetisch nach Nachname sortiert.
+- **Whitespace-Bereinigung im Backend:** Führende und nachgestellte Leerzeichen werden in `first_name` und `last_name` serverseitig via `.strip()` entfernt – sowohl beim Anlegen als auch beim Aktualisieren eines Tickets.
+
+---
 
 ## Neue API-Endpunkte
 
-Kein neuer Endpunkt — bestehender Endpunkt wurde erweitert:
-
 | Methode | Pfad | Beschreibung | Parameter |
 |---------|------|--------------|-----------|
-| `POST` | `/tickets` | Ticket erstellen | `title: str` (required), `description: str` (required), `priority?: str` (optional, Default: `"medium"`, gültig: `low` \| `medium` \| `high` \| `critical`) |
-| `PUT` | `/tickets/{id}` | Ticket aktualisieren | `priority?: str` — Priorität nachträglich ändern (bereits vor diesem Feature vorhanden, jetzt vollständig getestet) |
-| `GET` | `/tickets` | Ticket-Liste | Antwort enthält jetzt für jedes Ticket das Feld `priority` |
-| `GET` | `/tickets/{id}` | Ticket-Detail | Antwort enthält jetzt das Feld `priority` |
+| `GET` | `/tickets` | Alle Tickets auflisten | `sort` *(Query, optional)*: `created_at` (Standard, neueste zuerst) \| `priority_lastname` (nach Priorität desc + Nachname asc) |
+| `POST` | `/tickets` | Neues Ticket erstellen | **Body (JSON):** `title` *(string, required)*, `description` *(string, required)*, `priority` *(string, optional, default `medium`)*, `first_name` *(string, optional, default `""`)*, `last_name` *(string, optional, default `""`)* |
+| `PUT` | `/tickets/{id}` | Ticket aktualisieren | **Body (JSON, alle optional):** `title`, `description`, `status`, `category`, `priority`, `ai_suggestion`, `first_name`, `last_name` |
+
+> Alle Endpunkte geben das vollständige `Ticket`-Objekt zurück, das ab dieser Version die Felder `first_name: string` und `last_name: string` enthält.
+
+---
 
 ## Tests
 
-### Backend — `backend/tests/test_api.py` (11 neue Unit-Tests)
+### Backend – `backend/tests/test_api.py` (11 neue Tests)
+
+| Testfunktion | Was wird geprüft |
+|---|---|
+| `test_create_ticket_with_first_and_last_name` | Vor- und Nachname werden beim Erstellen korrekt gespeichert und zurückgegeben |
+| `test_create_ticket_without_name_uses_empty_defaults` | Tickets ohne Namensangabe erhalten leere Strings als Default (Abwärtskompatibilität) |
+| `test_create_ticket_with_priority_and_name` | Kombination aus Priorität, Vor- und Nachname wird vollständig persistiert |
+| `test_first_last_name_visible_in_detail` | Namen erscheinen im Einzelticket-Endpunkt (`GET /tickets/{id}`) |
+| `test_first_last_name_visible_in_list` | Namen erscheinen in der Gesamtliste (`GET /tickets`) |
+| `test_update_ticket_first_last_name` | Vor- und Nachname können via `PUT /tickets/{id}` nachträglich geändert werden |
+| `test_sort_tickets_by_priority_and_lastname` | `sort=priority_lastname` liefert korrekte Reihenfolge: Critical-Adler vor Critical-Becker, dann High, dann Low |
+| `test_whitespace_stripped_from_name` | Leerzeichen am Rand werden serverseitig entfernt |
+| `test_create_ticket_only_first_name` | Nur Vorname ohne Nachname ist zulässig; `last_name` bleibt `""` |
+| `test_create_ticket_only_last_name` | Nur Nachname ohne Vorname ist zulässig; `first_name` bleibt `""` |
+| `test_all_four_priorities_with_names` | Alle vier Prioritätsstufen (`low`, `medium`, `high`, `critical`) funktionieren in Kombination mit Namen |
+
+### Frontend (E2E) – `frontend/tests/helpdesk.spec.ts` (7 neue Playwright-Tests)
 
 | Testname | Was wird geprüft |
 |---|---|
-| `test_create_ticket_with_priority_low/medium/high/critical` | Alle vier gültigen Prioritätswerte werden korrekt gespeichert und in der Response zurückgegeben (HTTP 201). |
-| `test_create_ticket_default_priority_is_medium` | Fehlendes `priority`-Feld führt automatisch zu `"medium"`. |
-| `test_create_ticket_invalid_priority_falls_back_to_medium` | Ungültiger Wert (z. B. `"extreme"`) wird serverseitig auf `"medium"` normiert. |
-| `test_priority_visible_in_list` | Gespeicherte Priorität erscheint in `GET /tickets`. |
-| `test_priority_visible_in_detail` | Gespeicherte Priorität erscheint in `GET /tickets/{id}`. |
-| `test_update_priority_low_to_critical` | Priorität lässt sich per `PUT` hochsetzen. |
-| `test_update_priority_critical_to_low` | Priorität lässt sich per `PUT` runtersetzen. |
-| `test_all_priority_values_are_valid` | Parametrisierter Smoke-Test aller vier Stufen in einem Durchlauf. |
+| Vorname- und Nachname-Felder sind im Formular sichtbar | Beide Eingabefelder rendern korrekt auf der Seite |
+| Ticket mit Vor- und Nachname erstellen und in der Liste anzeigen | End-to-End-Flow: Eingabe → Submit → Anzeige in der Liste mit korrekten `data-testid`-Werten |
+| Ticket ohne Namen erstellen – kein Submitter-Bereich sichtbar | Abwesenheit des „Gemeldet von"-Blocks, wenn keine Namen eingegeben wurden |
+| Ticket mit Priorität Kritisch und Name erstellen | Kombination aus Critical-Banner, Prioritäts-Label und Namensanzeige |
+| Formular-Felder werden nach dem Absenden zurückgesetzt | Alle Felder (Titel, Vorname, Nachname) sind nach erfolgreichem Submit leer |
+| Vorname-Feld hat kein `required`-Attribut | Optionalität des Vorname-Feldes wird explizit auf DOM-Ebene geprüft |
+| Nachname-Feld hat kein `required`-Attribut | Optionalität des Nachname-Feldes wird explizit auf DOM-Ebene geprüft |
 
-### Frontend E2E — `frontend/tests/helpdesk.spec.ts` (6 neue Playwright-Tests)
-
-| Testname | Was wird geprüft |
-|---|---|
-| `Prioritäts-Dropdown ist im Formular sichtbar und hat Standardwert Mittel` | Dropdown sichtbar, Default-Wert `medium`. |
-| `Alle vier Prioritätsstufen sind im Dropdown wählbar` | Optionen `low/medium/high/critical` mit korrekten Labels vorhanden. |
-| `Ticket mit Priorität Hoch erstellen und Badge prüfen` | Nach Submit zeigt das Ticket-Item den Text `"Hoch"` via `PriorityBadge`. |
-| `Ticket mit Priorität Niedrig erstellen und Badge prüfen` | Entsprechend `"Niedrig"`. |
-| `Ticket mit Priorität Kritisch wird visuell hervorgehoben` | `data-testid="critical-banner"` sichtbar, Badge zeigt `"Kritisch"`. |
-| `Ohne manuelle Auswahl wird Priorität Mittel gesetzt` | Default-Verhalten: Badge zeigt `"Mittel"`. |
+---
 
 ## Deployment-Hinweise
 
-> **⚠️ DB-Migration erforderlich**, falls die Produktions-Datenbank bereits Tickets ohne `priority`-Spalte enthält.
-
-### Datenbank
-
-Die Tabelle `tickets` benötigt die Spalte `priority`. Bei bestehenden Deployments folgendes SQL ausführen:
+### Datenbank-Migration
+Die Migration ist **automatisch** und **nicht-destruktiv**: `database.py` führt beim Start via `ALTER TABLE tickets ADD COLUMN` die zwei neuen Spalten ein. Schlägt das `ALTER TABLE` fehl (Spalte existiert bereits), wird der Fehler stillschweigend ignoriert. Kein manueller Migrations-Schritt notwendig.
 
 ```sql
-ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium';
+-- Wird automatisch durch init_db() ausgeführt:
+ALTER TABLE tickets ADD COLUMN first_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE tickets ADD COLUMN last_name  TEXT NOT NULL DEFAULT '';
 ```
 
-Bei Nutzung des automatischen Schema-Setups (SQLite `CREATE TABLE IF NOT EXISTS`) reicht ein Neustart mit dem aktuellen `main.py`/`models.py`, sofern die DB noch leer ist — andernfalls ist das manuelle Alter-Statement notwendig.
+> ⚠️ **Bestehende Produktions-DBs:** Tickets, die vor diesem Release angelegt wurden, erhalten `first_name = ""` und `last_name = ""` als Standardwert – keine Datenverluste, keine Nullwerte.
 
 ### Neue Umgebungsvariablen
-
-Keine.
+Keine neuen Umgebungsvariablen erforderlich.
 
 ### Neue Abhängigkeiten
+Keine neuen Python- oder Node-Pakete. Die TypeScript-Compiler-Version wurde im Build-Artefakt (`tsconfig.app.tsbuildinfo`) von **5.9.3 → 6.0.3** aktualisiert – sicherstellen, dass die CI-Umgebung TypeScript ≥ 6.0 nutzt.
 
-Keine neuen Packages — alle Änderungen nutzen ausschließlich bereits installierte Libraries (`FastAPI`, `Pydantic`, `React`, `Playwright`).
-
-### Seed-Daten
-
-Falls der Demo-Reset-Endpoint (`POST /reset`) genutzt wird: Seed-Daten sollten um das Feld `priority` ergänzt werden, damit repräsentative Beispieldaten für alle Stufen vorhanden sind.
+### Frontend
+Das TypeScript-Interface `Ticket` in `frontend/src/api.ts` wurde um `first_name: string` und `last_name: string` ergänzt. Alle Komponenten, die das `Ticket`-Objekt destructuren, sind abwärtskompatibel (leere Strings als Fallback).

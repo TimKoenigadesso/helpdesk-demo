@@ -21,6 +21,8 @@ export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -29,10 +31,18 @@ export function TicketForm({ onCreated }: Props) {
     if (!title.trim() || !description.trim()) return;
     setLoading(true);
     try {
-      await api.createTicket({ title, description, priority });
+      await api.createTicket({
+        title,
+        description,
+        priority,
+        first_name: firstName,
+        last_name: lastName,
+      });
       setTitle('');
       setDescription('');
       setPriority('medium');
+      setFirstName('');
+      setLastName('');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -93,6 +103,48 @@ export function TicketForm({ onCreated }: Props) {
             focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
             resize-none placeholder-gray-400"
         />
+
+        {/* Vorname / Nachname */}
+        <div className="mb-3 grid grid-cols-2 gap-3">
+          <div>
+            <label
+              htmlFor="ticket-first-name"
+              className="block text-xs font-semibold text-gray-500 mb-1.5"
+            >
+              Vorname
+            </label>
+            <input
+              id="ticket-first-name"
+              type="text"
+              placeholder="Vorname"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              data-testid="ticket-first-name"
+              className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
+                focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                placeholder-gray-400"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="ticket-last-name"
+              className="block text-xs font-semibold text-gray-500 mb-1.5"
+            >
+              Nachname
+            </label>
+            <input
+              id="ticket-last-name"
+              type="text"
+              placeholder="Nachname"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              data-testid="ticket-last-name"
+              className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
+                focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                placeholder-gray-400"
+            />
+          </div>
+        </div>
 
         {/* Prioritäts-Auswahl */}
         <div className="mb-4">

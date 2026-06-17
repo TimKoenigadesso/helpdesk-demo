@@ -40,18 +40,26 @@ def health():
     return {"status": "ok"}
 
 @app.get("/tickets", response_model=List[Ticket])
-def list_tickets():
+def list_tickets(sort: str = "created_at"):
+    """Tickets auflisten. sort=priority_lastname sortiert nach Priorität (desc) und Nachname (asc)."""
+    PRIORITY_ORDER = "CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END"
+    if sort == "priority_lastname":
+        order_clause = f"{PRIORITY_ORDER} ASC, last_name ASC"
+    else:
+        order_clause = "created_at DESC"
     with get_conn() as conn:
-        rows = conn.execute("SELECT * FROM tickets ORDER BY created_at DESC").fetchall()
+        rows = conn.execute(f"SELECT * FROM tickets ORDER BY {order_clause}").fetchall()
     return [dict(r) for r in rows]
 
 @app.post("/tickets", response_model=Ticket, status_code=201)
 def create_ticket(ticket: TicketCreate):
     priority = ticket.priority if ticket.priority in VALID_PRIORITIES else "medium"
+    first_name = (ticket.first_name or "").strip()
+    last_name = (ticket.last_name or "").strip()
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO tickets (title, description, priority) VALUES (?, ?, ?) RETURNING *",
-            (ticket.title, ticket.description, priority),
+            "INSERT INTO tickets (title, description, priority, first_name, last_name) VALUES (?, ?, ?, ?, ?) RETURNING *",
+            (ticket.title, ticket.description, priority, first_name, last_name),
         )
         row = cur.fetchone()
     return dict(row)
@@ -83,6 +91,10 @@ def update_ticket(ticket_id: int, update: TicketUpdate):
         fields.append("priority = ?"); values.append(update.priority)
     if update.ai_suggestion is not None:
         fields.append("ai_suggestion = ?"); values.append(update.ai_suggestion)
+    if update.first_name is not None:
+        fields.append("first_name = ?"); values.append(update.first_name.strip())
+    if update.last_name is not None:
+        fields.append("last_name = ?"); values.append(update.last_name.strip())
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     fields.append("updated_at = datetime('now')")
