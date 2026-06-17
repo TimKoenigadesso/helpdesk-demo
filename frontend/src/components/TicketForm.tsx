@@ -13,17 +13,33 @@ interface Props { onCreated: () => void; }
 export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [reporterName, setReporterName] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [nameError, setNameError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNameError('');
+
     if (!title.trim() || !description.trim()) return;
+
+    // Validierung: Name darf max. 100 Zeichen haben
+    if (reporterName.trim().length > 100) {
+      setNameError('Der Name darf maximal 100 Zeichen lang sein.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await api.createTicket({ title, description });
+      await api.createTicket({
+        title,
+        description,
+        reporter_name: reporterName.trim() || undefined,
+      });
       setTitle('');
       setDescription('');
+      setReporterName('');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -80,10 +96,46 @@ export function TicketForm({ onCreated }: Props) {
           required
           rows={3}
           data-testid="ticket-description"
-          className="block w-full mb-4 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
+          className="block w-full mb-3 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
             focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
             resize-none placeholder-gray-400"
         />
+
+        {/* Namensfeld */}
+        <div className="mb-4">
+          <input
+            placeholder="Ihr Name (optional) — z.B. Max Mustermann"
+            value={reporterName}
+            onChange={(e) => {
+              setReporterName(e.target.value);
+              if (nameError) setNameError('');
+            }}
+            maxLength={100}
+            data-testid="reporter-name"
+            className={`block w-full px-4 py-2.5 rounded-xl border text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              placeholder-gray-400 ${
+                nameError ? 'border-red-400 bg-red-50' : 'border-gray-200'
+              }`}
+          />
+          {nameError && (
+            <p
+              data-testid="reporter-name-error"
+              className="mt-1.5 text-xs text-red-600 flex items-center gap-1"
+            >
+              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd" />
+              </svg>
+              {nameError}
+            </p>
+          )}
+          <p className="mt-1 text-[10px] text-gray-400">
+            Optionaler Name ermöglicht direkte Rückfragen an Sie.
+          </p>
+        </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           <button
             type="submit"

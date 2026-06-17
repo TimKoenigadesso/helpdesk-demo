@@ -10,6 +10,7 @@ export interface Ticket {
   category: string;
   priority: string;
   ai_suggestion: string | null;
+  reporter_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,7 +21,7 @@ export const api = {
     if (!r.ok) throw new Error('Failed to fetch tickets');
     return r.json() as Promise<Ticket[]>;
   },
-  async createTicket(data: { title: string; description: string }): Promise<Ticket> {
+  async createTicket(data: { title: string; description: string; reporter_name?: string }): Promise<Ticket> {
     const r = await fetch(`${API_BASE}/tickets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

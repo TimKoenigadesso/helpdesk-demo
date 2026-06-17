@@ -41,10 +41,14 @@ def list_tickets():
 
 @app.post("/tickets", response_model=Ticket, status_code=201)
 def create_ticket(ticket: TicketCreate):
+    # Validierung: reporter_name darf nicht leer sein, wenn angegeben
+    reporter_name = ticket.reporter_name.strip() if ticket.reporter_name else None
+    if reporter_name is not None and len(reporter_name) == 0:
+        reporter_name = None
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO tickets (title, description) VALUES (?, ?) RETURNING *",
-            (ticket.title, ticket.description),
+            "INSERT INTO tickets (title, description, reporter_name) VALUES (?, ?, ?) RETURNING *",
+            (ticket.title, ticket.description, reporter_name),
         )
         row = cur.fetchone()
     return dict(row)
@@ -76,6 +80,9 @@ def update_ticket(ticket_id: int, update: TicketUpdate):
         fields.append("priority = ?"); values.append(update.priority)
     if update.ai_suggestion is not None:
         fields.append("ai_suggestion = ?"); values.append(update.ai_suggestion)
+    if update.reporter_name is not None:
+        reporter_name = update.reporter_name.strip() if update.reporter_name else None
+        fields.append("reporter_name = ?"); values.append(reporter_name)
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     fields.append("updated_at = datetime('now')")
