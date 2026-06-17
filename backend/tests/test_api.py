@@ -345,3 +345,86 @@ def test_reset_clears_comments():
     for t in tickets:
         comments = client.get(f"/tickets/{t['id']}/comments").json()
         assert comments == []
+
+# ── Reporter-Name-Tests (AGSDLC-17) ──────────────────────────────────────────
+
+def test_create_ticket_with_reporter_name():
+    """Ticket mit Melder-Namen erstellen – Name wird persistent gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Name Test",
+        "description": "Beschreibung",
+        "reporter_name": "Max Mustermann",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] == "Max Mustermann"
+
+def test_create_ticket_without_reporter_name():
+    """Ticket ohne Melder-Namen erstellen – reporter_name ist None."""
+    r = client.post("/tickets", json={"title": "Kein Name", "description": "Desc"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] is None
+
+def test_reporter_name_max_length_exceeded():
+    """Name mit mehr als 100 Zeichen wird von Pydantic abgelehnt (422)."""
+    long_name = "A" * 101
+    r = client.post("/tickets", json={
+        "title": "Lang-Name Test",
+        "description": "Desc",
+        "reporter_name": long_name,
+    })
+    assert r.status_code == 422
+
+def test_reporter_name_exactly_100_chars():
+    """Name mit genau 100 Zeichen ist gültig."""
+    name_100 = "B" * 100
+    r = client.post("/tickets", json={
+        "title": "100-Zeichen Name",
+        "description": "Desc",
+        "reporter_name": name_100,
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == name_100
+
+def test_reporter_name_whitespace_only_stored_as_none():
+    """Name aus nur Leerzeichen wird als None gespeichert (Backend-Bereinigung)."""
+    r = client.post("/tickets", json={
+        "title": "Whitespace Name",
+        "description": "Desc",
+        "reporter_name": "   ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] is None
+
+def test_reporter_name_visible_in_detail():
+    """Gespeicherter Name ist in der Detailansicht abrufbar."""
+    created = client.post("/tickets", json={
+        "title": "Detail Name Test",
+        "description": "Desc",
+        "reporter_name": "Erika Musterfrau",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["reporter_name"] == "Erika Musterfrau"
+
+def test_reporter_name_visible_in_list():
+    """Gespeicherter Name erscheint in der Ticket-Übersichtsliste."""
+    client.post("/tickets", json={
+        "title": "List Name Test",
+        "description": "Desc",
+        "reporter_name": "Hans Schmidt",
+    })
+    tickets = client.get("/tickets").json()
+    ticket = next((t for t in tickets if t["title"] == "List Name Test"), None)
+    assert ticket is not None
+    assert ticket["reporter_name"] == "Hans Schmidt"
+
+def test_reporter_name_trimmed():
+    """Führende/nachfolgende Leerzeichen im Namen werden entfernt."""
+    r = client.post("/tickets", json={
+        "title": "Trim Name Test",
+        "description": "Desc",
+        "reporter_name": "  Anna Müller  ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == "Anna Müller"
