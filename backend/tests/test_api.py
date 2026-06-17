@@ -345,3 +345,168 @@ def test_reset_clears_comments():
     for t in tickets:
         comments = client.get(f"/tickets/{t['id']}/comments").json()
         assert comments == []
+
+# ── Vorname/Nachname + Priorität Feature-Tests (AGSDLC-20) ───────────────────
+
+def test_create_ticket_with_first_and_last_name():
+    """Ticket mit Vor- und Nachname erstellen — beide Felder werden gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Name Test",
+        "description": "Desc",
+        "first_name": "Anna",
+        "last_name": "Müller",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["first_name"] == "Anna"
+    assert data["last_name"] == "Müller"
+
+def test_create_ticket_without_name_uses_empty_defaults():
+    """Ohne Vor-/Nachname werden leere Strings als Standard gesetzt (abwärtskompatibel)."""
+    r = client.post("/tickets", json={"title": "No Name", "description": "Desc"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["first_name"] == ""
+    assert data["last_name"] == ""
+
+def test_create_ticket_with_priority_and_name():
+    """Ticket mit Priorität, Vor- und Nachname erstellen."""
+    r = client.post("/tickets", json={
+        "title": "Vollständig",
+        "description": "Alle Felder",
+        "priority": "high",
+        "first_name": "Max",
+        "last_name": "Mustermann",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["priority"] == "high"
+    assert data["first_name"] == "Max"
+    assert data["last_name"] == "Mustermann"
+
+def test_first_last_name_visible_in_detail():
+    """Vor- und Nachname erscheinen in der Ticket-Detailansicht."""
+    created = client.post("/tickets", json={
+        "title": "Detail Name Test",
+        "description": "Desc",
+        "first_name": "Lena",
+        "last_name": "Schmidt",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["first_name"] == "Lena"
+    assert detail["last_name"] == "Schmidt"
+
+def test_first_last_name_visible_in_list():
+    """Vor- und Nachname erscheinen in der Ticket-Übersichtsliste."""
+    client.post("/tickets", json={
+        "title": "List Name Test",
+        "description": "Desc",
+        "first_name": "Jonas",
+        "last_name": "Weber",
+    })
+    tickets = client.get("/tickets").json()
+    found = next((t for t in tickets if t["title"] == "List Name Test"), None)
+    assert found is not None
+    assert found["first_name"] == "Jonas"
+    assert found["last_name"] == "Weber"
+
+def test_update_ticket_first_last_name():
+    """Vor- und Nachname eines Tickets können nachträglich aktualisiert werden."""
+    created = client.post("/tickets", json={
+        "title": "Update Name Test",
+        "description": "Desc",
+        "first_name": "Alt",
+        "last_name": "Name",
+    }).json()
+    r = client.put(f"/tickets/{created['id']}", json={
+        "first_name": "Neu",
+        "last_name": "Bezeichnung",
+    })
+    assert r.status_code == 200
+    data = r.json()
+    assert data["first_name"] == "Neu"
+    assert data["last_name"] == "Bezeichnung"
+
+def test_sort_tickets_by_priority_and_lastname():
+    """Tickets nach Priorität (desc) und Nachname (asc) sortieren."""
+    client.post("/tickets", json={"title": "T1", "description": "D", "priority": "low", "first_name": "A", "last_name": "Zimmermann"})
+    client.post("/tickets", json={"title": "T2", "description": "D", "priority": "critical", "first_name": "B", "last_name": "Becker"})
+    client.post("/tickets", json={"title": "T3", "description": "D", "priority": "high", "first_name": "C", "last_name": "Meyer"})
+    client.post("/tickets", json={"title": "T4", "description": "D", "priority": "critical", "first_name": "D", "last_name": "Adler"})
+
+    r = client.get("/tickets?sort=priority_lastname")
+    assert r.status_code == 200
+    data = r.json()
+
+    # Extrahiere nur unsere Test-Tickets (T1-T4)
+    test_tickets = [t for t in data if t["title"] in ("T1", "T2", "T3", "T4")]
+    assert len(test_tickets) == 4
+
+    # Erste zwei sollen critical sein (T4=Adler, T2=Becker alphabetisch)
+    assert test_tickets[0]["priority"] == "critical"
+    assert test_tickets[1]["priority"] == "critical"
+    # Alphabetisch: Adler vor Becker
+    assert test_tickets[0]["last_name"] == "Adler"
+    assert test_tickets[1]["last_name"] == "Becker"
+    # Dann high
+    assert test_tickets[2]["priority"] == "high"
+    # Dann low
+    assert test_tickets[3]["priority"] == "low"
+
+def test_whitespace_stripped_from_name():
+    """Führende/nachfolgende Leerzeichen werden aus Namen entfernt."""
+    r = client.post("/tickets", json={
+        "title": "Whitespace Test",
+        "description": "Desc",
+        "first_name": "  Klaus  ",
+        "last_name": "  Fischer  ",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["first_name"] == "Klaus"
+    assert data["last_name"] == "Fischer"
+
+def test_create_ticket_only_first_name():
+    """Nur Vorname ohne Nachname ist möglich."""
+    r = client.post("/tickets", json={
+        "title": "Nur Vorname",
+        "description": "Desc",
+        "first_name": "Erika",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["first_name"] == "Erika"
+    assert data["last_name"] == ""
+
+def test_create_ticket_only_last_name():
+    """Nur Nachname ohne Vorname ist möglich."""
+    r = client.post("/tickets", json={
+        "title": "Nur Nachname",
+        "description": "Desc",
+        "last_name": "Köhler",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["first_name"] == ""
+    assert data["last_name"] == "Köhler"
+
+def test_all_four_priorities_with_names():
+    """Alle vier Prioritätsstufen können zusammen mit Namen übergeben werden."""
+    for prio, fname, lname in [
+        ("low", "Anna", "Braun"),
+        ("medium", "Bert", "Christ"),
+        ("high", "Clara", "Dorn"),
+        ("critical", "Dieter", "Ernst"),
+    ]:
+        r = client.post("/tickets", json={
+            "title": f"Prio+Name {prio}",
+            "description": "Desc",
+            "priority": prio,
+            "first_name": fname,
+            "last_name": lname,
+        })
+        assert r.status_code == 201
+        data = r.json()
+        assert data["priority"] == prio
+        assert data["first_name"] == fname
+        assert data["last_name"] == lname

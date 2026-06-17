@@ -85,6 +85,14 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                     <span className="text-[10px] text-gray-400">#{t.id}</span>
                   )}
                 </div>
+                {(t.first_name || t.last_name) && (
+                  <p className="mt-1 text-xs text-gray-500" data-testid="ticket-submitter">
+                    <span className="font-medium">Gemeldet von:</span>{' '}
+                    <span data-testid="ticket-first-name-display">{t.first_name}</span>
+                    {t.first_name && t.last_name ? ' ' : ''}
+                    <span data-testid="ticket-last-name-display">{t.last_name}</span>
+                  </p>
+                )}
                 <p className="mt-1.5 text-sm text-gray-600 line-clamp-2">{t.description}</p>
                 {adminMode && (
                   <p className="mt-1 text-[10px] text-gray-400">

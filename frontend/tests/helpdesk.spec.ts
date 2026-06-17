@@ -191,6 +191,83 @@ test.describe('Helpdesk App', () => {
     await expect(ticketItem.getByText('Mittel')).toBeVisible();
   });
 
+  // ── Vorname/Nachname + Priorität Feature-Tests (AGSDLC-20) ─────────────────
+
+  test('Vorname- und Nachname-Felder sind im Formular sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('ticket-first-name')).toBeVisible();
+    await expect(page.getByTestId('ticket-last-name')).toBeVisible();
+  });
+
+  test('Ticket mit Vor- und Nachname erstellen und in der Liste anzeigen', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Name Test Ticket');
+    await page.getByTestId('ticket-description').fill('Beschreibung mit Name');
+    await page.getByTestId('ticket-first-name').fill('Anna');
+    await page.getByTestId('ticket-last-name').fill('Müller');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Name Test Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('ticket-first-name-display')).toHaveText('Anna');
+    await expect(ticketItem.getByTestId('ticket-last-name-display')).toHaveText('Müller');
+  });
+
+  test('Ticket ohne Namen erstellen — kein Submitter-Bereich sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Anonym Test Ticket');
+    await page.getByTestId('ticket-description').fill('Kein Name angegeben');
+    // Kein Name → kein Eintrag in den Feldern
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Anonym Test Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('ticket-submitter')).not.toBeVisible();
+  });
+
+  test('Ticket mit Priorität Kritisch und Name erstellen', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Kritisch mit Name');
+    await page.getByTestId('ticket-description').fill('Server down, Kontakt: Max Mustermann');
+    await page.getByTestId('ticket-first-name').fill('Max');
+    await page.getByTestId('ticket-last-name').fill('Mustermann');
+    await page.getByTestId('ticket-priority').selectOption('critical');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Kritisch mit Name' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('critical-banner')).toBeVisible();
+    await expect(ticketItem.getByTestId('ticket-first-name-display')).toHaveText('Max');
+    await expect(ticketItem.getByTestId('ticket-last-name-display')).toHaveText('Mustermann');
+    await expect(ticketItem.getByText('Kritisch')).toBeVisible();
+  });
+
+  test('Formular-Felder werden nach dem Absenden zurückgesetzt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Reset Felder Test');
+    await page.getByTestId('ticket-description').fill('Felder sollen nach Submit leer sein');
+    await page.getByTestId('ticket-first-name').fill('Hans');
+    await page.getByTestId('ticket-last-name').fill('Meier');
+    await page.getByTestId('ticket-submit').click();
+
+    // Nach dem Submit sollen alle Felder leer sein
+    await expect(page.getByTestId('ticket-title')).toHaveValue('', { timeout: 5000 });
+    await expect(page.getByTestId('ticket-first-name')).toHaveValue('');
+    await expect(page.getByTestId('ticket-last-name')).toHaveValue('');
+  });
+
+  test('Vorname-Feld hat kein required-Attribut', async ({ page }) => {
+    await page.goto(BASE);
+    const firstNameInput = page.getByTestId('ticket-first-name');
+    await expect(firstNameInput).not.toHaveAttribute('required');
+  });
+
+  test('Nachname-Feld hat kein required-Attribut', async ({ page }) => {
+    await page.goto(BASE);
+    const lastNameInput = page.getByTestId('ticket-last-name');
+    await expect(lastNameInput).not.toHaveAttribute('required');
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 
