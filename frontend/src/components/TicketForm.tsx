@@ -21,18 +21,31 @@ export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [reporterName, setReporterName] = useState('');
+  const [nameError, setNameError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) return;
+    // Validierung: Name ist ein Pflichtfeld
+    if (!reporterName.trim()) {
+      setNameError('Bitte gib deinen Namen an.');
+      return;
+    }
+    if (reporterName.trim().length > 100) {
+      setNameError('Name darf maximal 100 Zeichen lang sein.');
+      return;
+    }
+    setNameError('');
     setLoading(true);
     try {
-      await api.createTicket({ title, description, priority });
+      await api.createTicket({ title, description, priority, reporter_name: reporterName.trim() });
       setTitle('');
       setDescription('');
       setPriority('medium');
+      setReporterName('');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -117,6 +130,36 @@ export function TicketForm({ onCreated }: Props) {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Namensfeld (Pflicht) */}
+        <div className="mb-4">
+          <label
+            htmlFor="ticket-reporter-name"
+            className="block text-xs font-semibold text-gray-500 mb-1.5"
+          >
+            Dein Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="ticket-reporter-name"
+            type="text"
+            placeholder="Vor- und Nachname"
+            value={reporterName}
+            onChange={(e) => { setReporterName(e.target.value); if (nameError) setNameError(''); }}
+            maxLength={100}
+            data-testid="ticket-reporter-name"
+            className={`block w-full px-4 py-2.5 rounded-xl border text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              placeholder-gray-400 ${nameError ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+          />
+          {nameError && (
+            <p
+              data-testid="reporter-name-error"
+              className="mt-1 text-xs text-red-600 font-medium"
+            >
+              {nameError}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">

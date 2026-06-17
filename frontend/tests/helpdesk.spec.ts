@@ -191,6 +191,65 @@ test.describe('Helpdesk App', () => {
     await expect(ticketItem.getByText('Mittel')).toBeVisible();
   });
 
+  // ── Melder-Name-Tests (AGSDLC-17) ──────────────────────────────────────────
+
+  test('Namensfeld ist im Formular sichtbar und als Pflichtfeld markiert', async ({ page }) => {
+    await page.goto(BASE);
+    const nameInput = page.getByTestId('ticket-reporter-name');
+    await expect(nameInput).toBeVisible();
+    // Label enthält Pflichtfeld-Markierung (*)
+    await expect(page.getByText('Dein Name')).toBeVisible();
+  });
+
+  test('Formular ohne Namen zeigt Validierungsfehler und sendet nicht ab', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Ticket ohne Namen');
+    await page.getByTestId('ticket-description').fill('Beschreibung ohne Namensangabe');
+    // Namensfeld bleibt leer
+    await page.getByTestId('ticket-submit').click();
+    // Fehlermeldung erscheint
+    await expect(page.getByTestId('reporter-name-error')).toBeVisible();
+    await expect(page.getByTestId('reporter-name-error')).toContainText('Namen');
+    // Kein neues Ticket wurde erstellt
+    await expect(page.getByText('Ticket ohne Namen')).not.toBeVisible();
+  });
+
+  test('Ticket mit Namen erstellen und Name in der Liste anzeigen', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Ticket mit Melder');
+    await page.getByTestId('ticket-description').fill('Beschreibung mit Namen');
+    await page.getByTestId('ticket-reporter-name').fill('Maria Musterfrau');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Ticket mit Melder' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // Name wird im Ticket angezeigt
+    await expect(ticketItem.getByTestId('reporter-name-display')).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('reporter-name-display')).toHaveText('Maria Musterfrau');
+  });
+
+  test('Namensfeld wird nach Absenden zurückgesetzt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Reset Namensfeld Test');
+    await page.getByTestId('ticket-description').fill('Beschreibung');
+    await page.getByTestId('ticket-reporter-name').fill('Hans Testmann');
+    await page.getByTestId('ticket-submit').click();
+    // Nach erfolgreichem Absenden ist das Namensfeld leer
+    await expect(page.getByTestId('ticket-reporter-name')).toHaveValue('', { timeout: 5000 });
+  });
+
+  test('Fehlermeldung verschwindet wenn Name eingegeben wird', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Fehler-Reset Test');
+    await page.getByTestId('ticket-description').fill('Beschreibung');
+    // Erst ohne Namen absenden
+    await page.getByTestId('ticket-submit').click();
+    await expect(page.getByTestId('reporter-name-error')).toBeVisible();
+    // Name eingeben → Fehlermeldung verschwindet
+    await page.getByTestId('ticket-reporter-name').fill('Karl Beispiel');
+    await expect(page.getByTestId('reporter-name-error')).not.toBeVisible();
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 
