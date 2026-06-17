@@ -1,72 +1,72 @@
-# Feature: Ticket-Prioritätsfunktion [AGSDLC-6]
+# Feature: Optionaler Meldername bei Ticket-Erstellung (AGSDLC-17)
 
 ## Was wurde implementiert
 
-- **Prioritätsstufen-Modell:** Vier Stufen (`low`, `medium`, `high`, `critical`) wurden end-to-end eingeführt — vom Datenmodell über die API bis zur UI.
-- **Backend-Validierung & Fallback:** `POST /tickets` akzeptiert ein optionales `priority`-Feld; ungültige Werte werden serverseitig auf `medium` zurückgesetzt, fehlende Werte ebenfalls.
-- **Prioritäts-Auswahl im Formular:** `TicketForm` enthält ein neues Dropdown (`data-testid="ticket-priority"`) mit Standardwert `medium`; der gewählte Wert wird beim Erstellen und nach dem Reset korrekt mitgesendet.
-- **Visuelle Darstellung in der Ticketliste:** `TicketList` zeigt je Ticket einen farbcodierten Priority-Dot und ein `PriorityBadge`. Kritische, offene Tickets erhalten zusätzlich roten Border/Ring/Hintergrund sowie ein prominentes Warn-Banner (`data-testid="critical-banner"`).
-- **API-Typ-Erweiterung:** `api.createTicket()` in `api.ts` akzeptiert nun das optionale Feld `priority?: string`.
+- **Neues Datenbankfeld `reporter_name`**: Die SQLite-Tabelle `tickets` wurde um eine optionale TEXT-Spalte erweitert; die Migration erfolgt automatisch via `ALTER TABLE` beim App-Start.
+- **Backend-Modell & API**: `TicketCreate` und `Ticket` (Pydantic) wurden um `reporter_name: Optional[str] = None` ergänzt; `POST /tickets` speichert den Wert nach Server-seitigem Trimming und Längenbegrenzung auf 100 Zeichen.
+- **Frontend-Formular (`TicketForm`)**: Neues optionales Eingabefeld „Ihr Name" mit `maxLength=100` und `data-testid="ticket-reporter-name"`; das Feld wird nach erfolgreichem Absenden automatisch geleert.
+- **Frontend-Anzeige (`TicketList`)**: Der Meldername wird, sofern vorhanden, mit einem 👤-Icon unterhalb der Ticket-Beschreibung dargestellt (`data-testid="ticket-reporter-name-display"`).
+- **TypeScript-Typen (`api.ts`)**: Das `Ticket`-Interface sowie die `createTicket`-Signatur wurden um `reporter_name: string | null` bzw. `reporter_name?: string` ergänzt.
+
+---
 
 ## Neue API-Endpunkte
 
-Kein neuer Endpunkt — bestehender Endpunkt wurde erweitert:
+Es wurden keine neuen Endpunkte hinzugefügt. Bestehende Endpunkte wurden erweitert:
 
-| Methode | Pfad | Beschreibung | Parameter |
-|---------|------|--------------|-----------|
-| `POST` | `/tickets` | Ticket erstellen | `title: str` (required), `description: str` (required), `priority?: str` (optional, Default: `"medium"`, gültig: `low` \| `medium` \| `high` \| `critical`) |
-| `PUT` | `/tickets/{id}` | Ticket aktualisieren | `priority?: str` — Priorität nachträglich ändern (bereits vor diesem Feature vorhanden, jetzt vollständig getestet) |
-| `GET` | `/tickets` | Ticket-Liste | Antwort enthält jetzt für jedes Ticket das Feld `priority` |
-| `GET` | `/tickets/{id}` | Ticket-Detail | Antwort enthält jetzt das Feld `priority` |
+| Methode | Pfad       | Beschreibung                                         | Parameter (Body / Response)                          |
+|---------|------------|------------------------------------------------------|------------------------------------------------------|
+| `POST`  | `/tickets` | Erstellt ein neues Ticket – jetzt mit optionalem Meldernamen | **Body (neu):** `reporter_name?: string` (max. 100 Zeichen, optional) · **Response (neu):** `reporter_name: string \| null` |
+| `GET`   | `/tickets` | Listet alle Tickets – enthält jetzt `reporter_name`  | **Response (neu):** `reporter_name: string \| null` pro Ticket-Objekt |
+| `GET`   | `/tickets/{id}` | Gibt ein einzelnes Ticket zurück – enthält jetzt `reporter_name` | **Response (neu):** `reporter_name: string \| null` |
+
+---
 
 ## Tests
 
-### Backend — `backend/tests/test_api.py` (11 neue Unit-Tests)
+### Backend – `backend/tests/test_api.py` (8 neue Unit-Tests)
 
-| Testname | Was wird geprüft |
+| Testfunktion | Was wird geprüft |
 |---|---|
-| `test_create_ticket_with_priority_low/medium/high/critical` | Alle vier gültigen Prioritätswerte werden korrekt gespeichert und in der Response zurückgegeben (HTTP 201). |
-| `test_create_ticket_default_priority_is_medium` | Fehlendes `priority`-Feld führt automatisch zu `"medium"`. |
-| `test_create_ticket_invalid_priority_falls_back_to_medium` | Ungültiger Wert (z. B. `"extreme"`) wird serverseitig auf `"medium"` normiert. |
-| `test_priority_visible_in_list` | Gespeicherte Priorität erscheint in `GET /tickets`. |
-| `test_priority_visible_in_detail` | Gespeicherte Priorität erscheint in `GET /tickets/{id}`. |
-| `test_update_priority_low_to_critical` | Priorität lässt sich per `PUT` hochsetzen. |
-| `test_update_priority_critical_to_low` | Priorität lässt sich per `PUT` runtersetzen. |
-| `test_all_priority_values_are_valid` | Parametrisierter Smoke-Test aller vier Stufen in einem Durchlauf. |
+| `test_create_ticket_with_reporter_name` | Meldername wird korrekt gespeichert und im Response zurückgegeben |
+| `test_create_ticket_without_reporter_name` | Fehlendes Feld → `reporter_name` ist `None` (Rückwärtskompatibilität) |
+| `test_create_ticket_reporter_name_trimmed` | Führende/nachfolgende Leerzeichen werden server-seitig entfernt |
+| `test_create_ticket_reporter_name_max_length` | Namen > 100 Zeichen werden auf genau 100 Zeichen gekürzt |
+| `test_create_ticket_reporter_name_whitespace_only_becomes_none` | Reine Leerzeichen-Eingabe wird als `None` behandelt |
+| `test_reporter_name_visible_in_detail` | Meldername erscheint in der Einzelticket-Detailantwort (`GET /tickets/{id}`) |
+| `test_reporter_name_visible_in_list` | Meldername erscheint in der Listenübersicht (`GET /tickets`) |
+| `test_reporter_name_null_in_list_when_not_provided` | Ticket ohne Namen hat in der Liste `reporter_name == None` |
 
-### Frontend E2E — `frontend/tests/helpdesk.spec.ts` (6 neue Playwright-Tests)
+### Frontend – `frontend/tests/helpdesk.spec.ts` (4 neue E2E-Tests mit Playwright)
 
-| Testname | Was wird geprüft |
+| Testfall | Was wird geprüft |
 |---|---|
-| `Prioritäts-Dropdown ist im Formular sichtbar und hat Standardwert Mittel` | Dropdown sichtbar, Default-Wert `medium`. |
-| `Alle vier Prioritätsstufen sind im Dropdown wählbar` | Optionen `low/medium/high/critical` mit korrekten Labels vorhanden. |
-| `Ticket mit Priorität Hoch erstellen und Badge prüfen` | Nach Submit zeigt das Ticket-Item den Text `"Hoch"` via `PriorityBadge`. |
-| `Ticket mit Priorität Niedrig erstellen und Badge prüfen` | Entsprechend `"Niedrig"`. |
-| `Ticket mit Priorität Kritisch wird visuell hervorgehoben` | `data-testid="critical-banner"` sichtbar, Badge zeigt `"Kritisch"`. |
-| `Ohne manuelle Auswahl wird Priorität Mittel gesetzt` | Default-Verhalten: Badge zeigt `"Mittel"`. |
+| *Namensfeld ist sichtbar und optional* | Eingabefeld ist im DOM sichtbar und trägt kein `required`-Attribut |
+| *Ticket ohne Namen kann erstellt werden* | Formular kann ohne Namenseingabe abgesendet werden; Ticket erscheint in der Liste |
+| *Name wird gespeichert und in Übersicht angezeigt* | Eingegebener Name „Max Mustermann" ist nach Erstellung im `data-testid="ticket-reporter-name-display"`-Element sichtbar |
+| *Namensfeld wird nach Absenden geleert* | Nach erfolgreichem Submit ist das Eingabefeld wieder leer (State-Reset) |
+
+---
 
 ## Deployment-Hinweise
 
-> **⚠️ DB-Migration erforderlich**, falls die Produktions-Datenbank bereits Tickets ohne `priority`-Spalte enthält.
-
-### Datenbank
-
-Die Tabelle `tickets` benötigt die Spalte `priority`. Bei bestehenden Deployments folgendes SQL ausführen:
-
+### Datenbank-Migration
+Die Migration läuft **automatisch** beim App-Start über `init_db()` in `backend/database.py`:
 ```sql
-ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium';
+ALTER TABLE tickets ADD COLUMN reporter_name TEXT;
 ```
-
-Bei Nutzung des automatischen Schema-Setups (SQLite `CREATE TABLE IF NOT EXISTS`) reicht ein Neustart mit dem aktuellen `main.py`/`models.py`, sofern die DB noch leer ist — andernfalls ist das manuelle Alter-Statement notwendig.
+> ⚠️ Bestehende Ticket-Zeilen erhalten `reporter_name = NULL` – vollständig abwärtskompatibel.  
+> Bei einem bereits laufenden System reicht ein einfacher Neustart des Backend-Containers; **kein manueller SQL-Eingriff notwendig**.
 
 ### Neue Umgebungsvariablen
-
 Keine.
 
 ### Neue Abhängigkeiten
+Keine – weder im Python-Backend noch im TypeScript-Frontend wurden neue Pakete eingeführt.
 
-Keine neuen Packages — alle Änderungen nutzen ausschließlich bereits installierte Libraries (`FastAPI`, `Pydantic`, `React`, `Playwright`).
-
-### Seed-Daten
-
-Falls der Demo-Reset-Endpoint (`POST /reset`) genutzt wird: Seed-Daten sollten um das Feld `priority` ergänzt werden, damit repräsentative Beispieldaten für alle Stufen vorhanden sind.
+### Rollback
+Sollte ein Rollback auf den Stand vor AGSDLC-17 erforderlich sein, muss die Spalte manuell entfernt werden (SQLite unterstützt `DROP COLUMN` erst ab Version 3.35.0):
+```sql
+-- SQLite >= 3.35.0
+ALTER TABLE tickets DROP COLUMN reporter_name;
+```
