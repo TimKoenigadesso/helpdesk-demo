@@ -1,8 +1,9 @@
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-DB_PATH = Path("/app/db/helpdesk.db")
+DB_PATH = Path(os.environ.get("DB_PATH", "/app/db/helpdesk.db"))
 
 def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
