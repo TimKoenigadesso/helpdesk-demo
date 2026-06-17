@@ -345,3 +345,86 @@ def test_reset_clears_comments():
     for t in tickets:
         comments = client.get(f"/tickets/{t['id']}/comments").json()
         assert comments == []
+
+# ── Melder-Name-Tests (AGSDLC-17) ────────────────────────────────────────────
+
+def test_create_ticket_with_reporter_name():
+    """Ticket mit Melder-Name erstellen — Name wird gespeichert und zurückgegeben."""
+    r = client.post("/tickets", json={
+        "title": "Name Test Ticket",
+        "description": "Beschreibung",
+        "reporter_name": "Max Mustermann",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] == "Max Mustermann"
+
+def test_create_ticket_without_reporter_name():
+    """Ticket ohne Melder-Name erstellen — reporter_name ist None."""
+    r = client.post("/tickets", json={"title": "Kein Name", "description": "Ohne Name"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] is None
+
+def test_reporter_name_visible_in_detail():
+    """Gespeicherter Melder-Name erscheint in der Ticket-Detailansicht."""
+    created = client.post("/tickets", json={
+        "title": "Detail Name Test",
+        "description": "Desc",
+        "reporter_name": "Erika Musterfrau",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["reporter_name"] == "Erika Musterfrau"
+
+def test_reporter_name_visible_in_list():
+    """Gespeicherter Melder-Name erscheint in der Ticket-Übersichtsliste."""
+    client.post("/tickets", json={
+        "title": "List Name Test",
+        "description": "Desc",
+        "reporter_name": "Hans Müller",
+    })
+    tickets = client.get("/tickets").json()
+    match = next((t for t in tickets if t["title"] == "List Name Test"), None)
+    assert match is not None
+    assert match["reporter_name"] == "Hans Müller"
+
+def test_reporter_name_max_length():
+    """Name mit exakt 100 Zeichen wird akzeptiert."""
+    long_name = "A" * 100
+    r = client.post("/tickets", json={
+        "title": "Langer Name",
+        "description": "Desc",
+        "reporter_name": long_name,
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == long_name
+
+def test_reporter_name_too_long_rejected():
+    """Name mit mehr als 100 Zeichen wird abgelehnt (422)."""
+    too_long = "A" * 101
+    r = client.post("/tickets", json={
+        "title": "Zu langer Name",
+        "description": "Desc",
+        "reporter_name": too_long,
+    })
+    assert r.status_code == 422
+
+def test_reporter_name_whitespace_only_stored_as_none():
+    """Nur-Whitespace-Name wird als None gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Whitespace Name",
+        "description": "Desc",
+        "reporter_name": "   ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] is None
+
+def test_reporter_name_is_trimmed():
+    """Führende und abschließende Leerzeichen werden entfernt."""
+    r = client.post("/tickets", json={
+        "title": "Trim Name Test",
+        "description": "Desc",
+        "reporter_name": "  Anna Schmidt  ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == "Anna Schmidt"
