@@ -191,6 +191,74 @@ test.describe('Helpdesk App', () => {
     await expect(ticketItem.getByText('Mittel')).toBeVisible();
   });
 
+  // ── Reporter-Name-Tests (AGSDLC-17) ──────────────────────────────────────
+
+  test('Namensfeld ist im Formular sichtbar und optional', async ({ page }) => {
+    await page.goto(BASE);
+    const nameInput = page.getByTestId('reporter-name');
+    await expect(nameInput).toBeVisible();
+    // Label zeigt "(optional)"
+    await expect(page.getByText('Ihr Name')).toBeVisible();
+    // Formular kann ohne Namen abgeschickt werden
+    await page.getByTestId('ticket-title').fill('Ticket ohne Namen');
+    await page.getByTestId('ticket-description').fill('Beschreibung ohne Namensangabe');
+    await page.getByTestId('ticket-submit').click();
+    await expect(page.getByTestId('ticket-item').filter({ hasText: 'Ticket ohne Namen' })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('Ticket mit Namen erstellen und Name in Übersicht anzeigen', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Ticket mit Melder-Name');
+    await page.getByTestId('ticket-description').fill('Beschreibung mit Name');
+    await page.getByTestId('reporter-name').fill('Max Mustermann');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Ticket mit Melder-Name' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // Name wird in der Ticket-Karte angezeigt
+    await expect(ticketItem.getByTestId('reporter-name-display')).toBeVisible();
+    await expect(ticketItem.getByTestId('reporter-name-display')).toContainText('Max Mustermann');
+  });
+
+  test('Namensfeld wird nach Absenden geleert', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Reset Name Ticket');
+    await page.getByTestId('ticket-description').fill('Feldwert wird nach Submit geleert');
+    await page.getByTestId('reporter-name').fill('Erika Musterfrau');
+    await page.getByTestId('ticket-submit').click();
+    // Nach erfolgreichem Absenden ist das Namensfeld leer
+    await expect(page.getByTestId('reporter-name')).toHaveValue('', { timeout: 5000 });
+  });
+
+  test('Validierungsfehler bei Name über 100 Zeichen', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Zu langer Name');
+    await page.getByTestId('ticket-description').fill('Beschreibung');
+    // 101 Zeichen im Namensfeld eingeben (maxLength=100 im input verhindert das direkt via UI,
+    // daher via evaluate um den Wert programmatisch zu setzen und HTML-Validierung zu umgehen)
+    await page.getByTestId('reporter-name').evaluate((el: HTMLInputElement) => {
+      el.removeAttribute('maxlength');
+    });
+    await page.getByTestId('reporter-name').fill('A'.repeat(101));
+    await page.getByTestId('ticket-submit').click();
+    // Fehlermeldung sichtbar
+    await expect(page.getByTestId('reporter-name-error')).toBeVisible({ timeout: 3000 });
+    await expect(page.getByTestId('reporter-name-error')).toContainText('100 Zeichen');
+  });
+
+  test('Ticket ohne Namen zeigt keinen Melder-Bereich', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Anonym Ticket');
+    await page.getByTestId('ticket-description').fill('Kein Name angegeben');
+    // reporter-name leer lassen
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Anonym Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // reporter-name-display darf nicht sichtbar sein
+    await expect(ticketItem.getByTestId('reporter-name-display')).not.toBeVisible();
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 
