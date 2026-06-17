@@ -181,7 +181,7 @@ jobs:
 
   fix:
     needs: [test-unit, test-e2e]
-    if: always() && needs.test-unit.result == 'failure'
+    if: always() && (needs.test-unit.result == 'failure' || needs.test-e2e.result == 'failure')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -213,7 +213,11 @@ jobs:
       - name: Tests ausfuehren und Output sammeln
         env:
           ANTHROPIC_VERTEX_PROJECT_ID: mock
-        run: cd backend && python3 -m pytest tests/ -v --tb=long 2>&1 | tee /tmp/test-output.txt; cd ..
+          DB_PATH: /tmp/fix-test.db
+        run: |
+          cd backend && python3 -m pytest tests/ -v --tb=long 2>&1 | tee /tmp/test-output.txt; cd ..
+          echo "=== E2E PLAYWRIGHT STATUS ===" >> /tmp/test-output.txt
+          echo "E2E tests werden bei Bedarf vom Agenten repariert." >> /tmp/test-output.txt
 
       - name: Fix-Agent ausfuehren
         env:
@@ -221,6 +225,8 @@ jobs:
           ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           CLOUD_ML_REGION: europe-west1
           JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
+          TEST_UNIT_RESULT: ${{ needs.test-unit.result }}
+          TEST_E2E_RESULT: ${{ needs.test-e2e.result }}
           FIX_ITERATION: "1"
         run: |
           export TEST_OUTPUT="$(cat /tmp/test-output.txt | tail -80)"
@@ -228,6 +234,8 @@ jobs:
 
       - name: Fixes pushen
         env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          REPO: ${{ github.repository }}
           JIRA_TICKET_ID: ${{ github.event.inputs.jira_ticket_id }}
         run: |
           git config --unset-all "http.https://github.com/.extraheader" || true
