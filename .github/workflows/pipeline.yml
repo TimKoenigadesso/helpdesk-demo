@@ -217,6 +217,13 @@ jobs:
           echo "=== E2E PLAYWRIGHT STATUS ===" >> /tmp/test-output.txt
           echo "E2E tests werden bei Bedarf vom Agenten repariert." >> /tmp/test-output.txt
 
+      - name: E2E Output sammeln
+        if: needs.test-e2e.result == 'failure'
+        run: |
+          echo "=== PLAYWRIGHT E2E FAILURES ===" > /tmp/e2e-output.txt
+          echo "Häufige Ursachen: fehlende data-testid, strict mode violation (mehrere Elemente), Timeout" >> /tmp/e2e-output.txt
+          cat /tmp/test-output.txt >> /tmp/e2e-output.txt 2>/dev/null || true
+
       - name: Fix-Agent ausfuehren
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
@@ -227,8 +234,9 @@ jobs:
           TEST_E2E_RESULT: ${{ needs.test-e2e.result }}
           FIX_ITERATION: "1"
         run: |
-          export TEST_OUTPUT="$(cat /tmp/test-output.txt | tail -80)"
-          python3 scripts/claude-agent.py scripts/prompts/fix.txt 30
+          export TEST_OUTPUT="$(cat /tmp/test-output.txt 2>/dev/null | tail -100)"
+          export E2E_OUTPUT="$(cat /tmp/e2e-output.txt 2>/dev/null | tail -60)"
+          python3 scripts/claude-agent.py scripts/prompts/fix.txt 60
 
       - name: Fixes pushen
         env:
