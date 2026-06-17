@@ -51,6 +51,7 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
             {isCritical && (
               <div
                 data-testid="critical-banner"
+                aria-hidden="true"
                 className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-red-700"
               >
                 <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
