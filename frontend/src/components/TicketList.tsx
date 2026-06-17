@@ -68,7 +68,6 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                   {/* Priority dot */}
                   <span className={`w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[t.priority] ?? 'bg-gray-300'}`} />
                   <span data-testid="ticket-title-display"
-                    aria-hidden="true"
                     className="font-semibold text-gray-900 text-sm">
                     {t.title}
                   </span>
