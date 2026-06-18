@@ -198,6 +198,145 @@ def test_analyze_ticket_fallback():
     assert data["priority"] in {"low", "medium", "high", "critical"}
     assert data["ai_suggestion"] is not None
 
+# ── Name-und-Priorität-Feature-Tests (AGSDLC-21) ─────────────────────────────
+
+def test_create_ticket_with_name():
+    """Ticket mit Name erstellen — Name wird persistent gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Name Test Ticket",
+        "description": "Beschreibung",
+        "name": "Mein eindeutiger Name",
+        "priority": "high",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["name"] == "Mein eindeutiger Name"
+    assert data["priority"] == "high"
+
+def test_create_ticket_without_name_defaults_to_none():
+    """Ticket ohne Name-Angabe: name-Feld ist None (optional)."""
+    r = client.post("/tickets", json={"title": "Kein Name", "description": "Desc"})
+    assert r.status_code == 201
+    assert r.json()["name"] is None
+
+def test_create_ticket_name_max_255_chars():
+    """Name mit exakt 255 Zeichen wird akzeptiert."""
+    long_name = "A" * 255
+    r = client.post("/tickets", json={
+        "title": "Max Name Test",
+        "description": "Desc",
+        "name": long_name,
+    })
+    assert r.status_code == 201
+    assert r.json()["name"] == long_name
+
+def test_create_ticket_name_too_long_rejected():
+    """Name mit mehr als 255 Zeichen wird abgelehnt (422)."""
+    too_long = "A" * 256
+    r = client.post("/tickets", json={
+        "title": "Zu langer Name",
+        "description": "Desc",
+        "name": too_long,
+    })
+    assert r.status_code == 422
+
+def test_name_visible_in_detail():
+    """Gespeicherter Name erscheint in der Ticket-Detailansicht."""
+    created = client.post("/tickets", json={
+        "title": "Detail Name Test",
+        "description": "Desc",
+        "name": "Detail-Name",
+        "priority": "critical",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["name"] == "Detail-Name"
+    assert detail["priority"] == "critical"
+
+def test_name_visible_in_list():
+    """Gespeicherter Name erscheint in der Ticket-Übersichtsliste."""
+    client.post("/tickets", json={
+        "title": "List Name Test",
+        "description": "Desc",
+        "name": "Listen-Name",
+    })
+    tickets = client.get("/tickets").json()
+    ticket = next((t for t in tickets if t["title"] == "List Name Test"), None)
+    assert ticket is not None
+    assert ticket["name"] == "Listen-Name"
+
+def test_update_ticket_name():
+    """Name eines bestehenden Tickets ändern."""
+    created = client.post("/tickets", json={
+        "title": "Update Name Test",
+        "description": "Desc",
+        "name": "Alter Name",
+    }).json()
+    updated = client.put(f"/tickets/{created['id']}", json={"name": "Neuer Name"}).json()
+    assert updated["name"] == "Neuer Name"
+
+def test_update_ticket_name_and_priority():
+    """Name und Priorität gleichzeitig aktualisieren."""
+    created = client.post("/tickets", json={
+        "title": "Kombi Update Test",
+        "description": "Desc",
+        "name": "Ursprünglicher Name",
+        "priority": "low",
+    }).json()
+    updated = client.put(f"/tickets/{created['id']}", json={
+        "name": "Aktualisierter Name",
+        "priority": "critical",
+    }).json()
+    assert updated["name"] == "Aktualisierter Name"
+    assert updated["priority"] == "critical"
+
+def test_name_prefilled_on_existing_ticket():
+    """Bestehender Eintrag mit Name: Name ist beim Abruf vorausgefüllt."""
+    created = client.post("/tickets", json={
+        "title": "Prefill Test",
+        "description": "Desc",
+        "name": "Vorausgefüllter Name",
+        "priority": "medium",
+    }).json()
+    fetched = client.get(f"/tickets/{created['id']}").json()
+    assert fetched["name"] == "Vorausgefüllter Name"
+    assert fetched["priority"] == "medium"
+
+def test_create_ticket_empty_name_stored_as_none():
+    """Leerer Name-String wird als None gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Leerer Name Test",
+        "description": "Desc",
+        "name": "   ",
+    })
+    assert r.status_code == 201
+    assert r.json()["name"] is None
+
+def test_priorities_endpoint_returns_all_four():
+    """GET /priorities gibt alle vier Prioritätsstufen zurück."""
+    r = client.get("/priorities")
+    assert r.status_code == 200
+    data = r.json()
+    values = {item["value"] for item in data}
+    assert values == {"low", "medium", "high", "critical"}
+
+def test_priorities_endpoint_labels_correct():
+    """GET /priorities gibt korrekte deutsche Labels zurück."""
+    r = client.get("/priorities")
+    data = r.json()
+    label_map = {item["value"]: item["label"] for item in data}
+    assert label_map["low"] == "Niedrig"
+    assert label_map["medium"] == "Mittel"
+    assert label_map["high"] == "Hoch"
+    assert label_map["critical"] == "Kritisch"
+
+def test_name_validation_not_required_for_existing_tests():
+    """Name ist optional — bestehende Tickets ohne Name können weiter erstellt werden."""
+    r = client.post("/tickets", json={"title": "Pflichtfelder Test", "description": "Nur Titel und Beschreibung"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["title"] == "Pflichtfelder Test"
+    assert data["name"] is None
+
 # ── Kommentar-Tests ───────────────────────────────────────────────────────────
 
 def _create_ticket(title: str = "Kommentar Test Ticket") -> dict:

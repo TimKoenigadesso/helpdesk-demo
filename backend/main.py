@@ -39,6 +39,16 @@ def startup():
 def health():
     return {"status": "ok"}
 
+@app.get("/priorities")
+def get_priorities():
+    """Gibt alle gültigen Prioritätsstufen zurück (für dynamisches Laden im Frontend)."""
+    return [
+        {"value": "low",      "label": "Niedrig"},
+        {"value": "medium",   "label": "Mittel"},
+        {"value": "high",     "label": "Hoch"},
+        {"value": "critical", "label": "Kritisch"},
+    ]
+
 @app.get("/tickets", response_model=List[Ticket])
 def list_tickets():
     with get_conn() as conn:
@@ -48,10 +58,11 @@ def list_tickets():
 @app.post("/tickets", response_model=Ticket, status_code=201)
 def create_ticket(ticket: TicketCreate):
     priority = ticket.priority if ticket.priority in VALID_PRIORITIES else "medium"
+    name = ticket.name.strip() if ticket.name and ticket.name.strip() else None
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO tickets (title, description, priority) VALUES (?, ?, ?) RETURNING *",
-            (ticket.title, ticket.description, priority),
+            "INSERT INTO tickets (title, description, priority, name) VALUES (?, ?, ?, ?) RETURNING *",
+            (ticket.title, ticket.description, priority, name),
         )
         row = cur.fetchone()
     return dict(row)
@@ -81,6 +92,9 @@ def update_ticket(ticket_id: int, update: TicketUpdate):
         if update.priority not in VALID_PRIORITIES:
             raise HTTPException(status_code=422, detail=f"Invalid priority. Must be one of: {VALID_PRIORITIES}")
         fields.append("priority = ?"); values.append(update.priority)
+    if update.name is not None:
+        name_val = update.name.strip() if update.name.strip() else None
+        fields.append("name = ?"); values.append(name_val)
     if update.ai_suggestion is not None:
         fields.append("ai_suggestion = ?"); values.append(update.ai_suggestion)
     if not fields:

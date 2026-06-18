@@ -16,6 +16,7 @@ def init_db():
                 status TEXT NOT NULL DEFAULT 'open',
                 category TEXT NOT NULL DEFAULT 'uncategorized',
                 priority TEXT NOT NULL DEFAULT 'medium',
+                name TEXT,
                 ai_suggestion TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -32,6 +33,7 @@ def init_db():
         for col, definition in [
             ("category", "TEXT NOT NULL DEFAULT 'uncategorized'"),
             ("priority", "TEXT NOT NULL DEFAULT 'medium'"),
+            ("name", "TEXT"),
             ("ai_suggestion", "TEXT"),
         ]:
             try:

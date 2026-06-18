@@ -9,6 +9,7 @@ class TicketCreate(BaseModel):
     title: str
     description: str
     priority: Optional[str] = "medium"
+    name: Optional[str] = Field(default=None, max_length=255)
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
@@ -16,6 +17,7 @@ class TicketUpdate(BaseModel):
     status: Optional[str] = None
     category: Optional[str] = None
     priority: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=255)
     ai_suggestion: Optional[str] = None
 
 class Ticket(BaseModel):
@@ -25,6 +27,7 @@ class Ticket(BaseModel):
     status: str
     category: str = "uncategorized"
     priority: str = "medium"
+    name: Optional[str] = None
     ai_suggestion: Optional[str] = None
     created_at: str
     updated_at: str

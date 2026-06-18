@@ -21,6 +21,7 @@ export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -29,10 +30,16 @@ export function TicketForm({ onCreated }: Props) {
     if (!title.trim() || !description.trim()) return;
     setLoading(true);
     try {
-      await api.createTicket({ title, description, priority });
+      await api.createTicket({
+        title,
+        description,
+        priority,
+        name: name.trim() || undefined,
+      });
       setTitle('');
       setDescription('');
       setPriority('medium');
+      setName('');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -93,6 +100,28 @@ export function TicketForm({ onCreated }: Props) {
             focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
             resize-none placeholder-gray-400"
         />
+
+        {/* Name-Feld (AGSDLC-21) */}
+        <div className="mb-3">
+          <label
+            htmlFor="ticket-name"
+            className="block text-xs font-semibold text-gray-500 mb-1.5"
+          >
+            Name <span className="text-gray-400 font-normal">(optional, max. 255 Zeichen)</span>
+          </label>
+          <input
+            id="ticket-name"
+            type="text"
+            placeholder="Eindeutiger Name für diesen Eintrag"
+            value={name}
+            onChange={(e) => setName(e.target.value.slice(0, 255))}
+            maxLength={255}
+            data-testid="ticket-name"
+            className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              placeholder-gray-400"
+          />
+        </div>
 
         {/* Prioritäts-Auswahl */}
         <div className="mb-4">

@@ -85,6 +85,17 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                     <span className="text-[10px] text-gray-400">#{t.id}</span>
                   )}
                 </div>
+                {t.name && (
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Name:</span>
+                    <span
+                      data-testid="ticket-name-display"
+                      className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
+                    >
+                      {t.name}
+                    </span>
+                  </div>
+                )}
                 <p className="mt-1.5 text-sm text-gray-600 line-clamp-2">{t.description}</p>
                 {adminMode && (
                   <p className="mt-1 text-[10px] text-gray-400">

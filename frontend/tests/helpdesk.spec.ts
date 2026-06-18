@@ -191,6 +191,58 @@ test.describe('Helpdesk App', () => {
     await expect(ticketItem.getByText('Mittel')).toBeVisible();
   });
 
+  // ── Name-und-Priorität-Feature-Tests (AGSDLC-21) ──────────────────────────
+
+  test('Name-Feld ist im Formular sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    const nameInput = page.getByTestId('ticket-name');
+    await expect(nameInput).toBeVisible();
+  });
+
+  test('Name-Feld ist optional — Ticket ohne Name kann erstellt werden', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Ticket ohne Namen');
+    await page.getByTestId('ticket-description').fill('Kein Name angegeben');
+    // ticket-name NICHT befüllen
+    await page.getByTestId('ticket-submit').click();
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Ticket ohne Namen' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+  });
+
+  test('Ticket mit Name erstellen — Name wird in der Detailansicht angezeigt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Ticket mit Name');
+    await page.getByTestId('ticket-description').fill('Beschreibung mit Name');
+    await page.getByTestId('ticket-name').fill('Mein Test-Name');
+    await page.getByTestId('ticket-submit').click();
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Ticket mit Name' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('ticket-name-display')).toBeVisible();
+    await expect(ticketItem.getByTestId('ticket-name-display')).toHaveText('Mein Test-Name');
+  });
+
+  test('Name und Priorität zusammen speichern', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Name und Priorität Test');
+    await page.getByTestId('ticket-description').fill('Beide Felder ausgefüllt');
+    await page.getByTestId('ticket-name').fill('Vollständiger Eintrag');
+    await page.getByTestId('ticket-priority').selectOption('high');
+    await page.getByTestId('ticket-submit').click();
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Name und Priorität Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('ticket-name-display')).toHaveText('Vollständiger Eintrag');
+    await expect(ticketItem.getByText('Hoch')).toBeVisible();
+  });
+
+  test('Name-Feld akzeptiert maximal 255 Zeichen', async ({ page }) => {
+    await page.goto(BASE);
+    const maxName = 'A'.repeat(255);
+    const nameInput = page.getByTestId('ticket-name');
+    await nameInput.fill(maxName);
+    const value = await nameInput.inputValue();
+    expect(value.length).toBeLessThanOrEqual(255);
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 
