@@ -157,7 +157,12 @@ jobs:
 
       - name: Frontend bauen und servieren
         run: |
-          cd frontend && npm ci
+          cd frontend
+          # Playwright wird im Root verwaltet — aus frontend/package.json entfernen,
+          # damit npm ci es nicht in frontend/node_modules installiert und
+          # kein Doppel-Load verursacht wird.
+          npm pkg delete devDependencies.@playwright/test 2>/dev/null || true
+          npm ci
           VITE_API_URL=http://localhost:8000 npm run build
           npx serve dist --listen 5173 &
 

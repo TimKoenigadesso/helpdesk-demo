@@ -24,6 +24,9 @@ AUFGABEN (in dieser Reihenfolge):
 KRITISCHE REGELN:
 - Keine Secrets hardcoden. Bestehende Konventionen einhalten. Tailwind fuer Styling nutzen.
 - NIEMALS Dateien in .github/ bearbeiten.
+- NIEMALS @playwright/test oder playwright zu frontend/package.json hinzufuegen.
+  Playwright wird zentral im Root-Workflow installiert. Playwright-Tests schreibst du
+  in frontend/tests/helpdesk.spec.ts — importiere dort weiterhin aus '@playwright/test'.
 - NEUE FORMULARFELDER MUESSEN OPTIONAL SEIN: Kein required-Attribut auf neuen Input-Feldern,
   da bestehende Tests (test_api.py, helpdesk.spec.ts) keine neuen Felder ausfuellen.
   Benutze HTML-Validierung NUR fuer bereits bestehende Pflichtfelder (title, description).
