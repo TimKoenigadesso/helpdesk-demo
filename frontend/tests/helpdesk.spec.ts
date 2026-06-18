@@ -191,6 +191,49 @@ test.describe('Helpdesk App', () => {
     await expect(ticketItem.getByText('Mittel')).toBeVisible();
   });
 
+  test('Prioritäts-Sortier-Button ist in der Ticket-Liste sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    // Ticket erstellen damit die Liste sichtbar ist
+    await page.getByTestId('ticket-title').fill('Sortier-Sichtbarkeit Test');
+    await page.getByTestId('ticket-description').fill('Beschreibung');
+    await page.getByTestId('ticket-submit').click();
+    await expect(page.getByTestId('ticket-item').first()).toBeVisible({ timeout: 5000 });
+    // Sortier-Button prüfen
+    await expect(page.getByTestId('sort-by-priority')).toBeVisible();
+  });
+
+  test('Sortierung nach Priorität: absteigend dann aufsteigend wechseln', async ({ page }) => {
+    await page.goto(BASE);
+
+    // Mehrere Tickets mit verschiedenen Prioritäten erstellen
+    await page.getByTestId('ticket-title').fill('Sort-Low Ticket');
+    await page.getByTestId('ticket-description').fill('Niedrig');
+    await page.getByTestId('ticket-priority').selectOption('low');
+    await page.getByTestId('ticket-submit').click();
+
+    await page.getByTestId('ticket-title').fill('Sort-Critical Ticket');
+    await page.getByTestId('ticket-description').fill('Kritisch');
+    await page.getByTestId('ticket-priority').selectOption('critical');
+    await page.getByTestId('ticket-submit').click();
+
+    await expect(page.getByTestId('ticket-item').first()).toBeVisible({ timeout: 5000 });
+
+    const sortBtn = page.getByTestId('sort-by-priority');
+    await expect(sortBtn).toBeVisible();
+
+    // Erster Klick → absteigend (hoch → niedrig)
+    await sortBtn.click();
+    await expect(sortBtn).toContainText('↓');
+
+    // Zweiter Klick → aufsteigend (niedrig → hoch)
+    await sortBtn.click();
+    await expect(sortBtn).toContainText('↑');
+
+    // Dritter Klick → keine Sortierung
+    await sortBtn.click();
+    await expect(sortBtn).toContainText('Priorität sortieren');
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 

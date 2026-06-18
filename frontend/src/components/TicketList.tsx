@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Ticket, api } from '../api';
 import { PriorityBadge } from './PriorityBadge';
 import { CategoryTag } from './CategoryTag';
@@ -9,6 +10,13 @@ const PRIORITY_DOT: Record<string, string> = {
   medium: 'bg-yellow-400', low: 'bg-green-400',
 };
 
+// Numerischer Rang für Sortierung (höhere Zahl = höhere Priorität)
+const PRIORITY_RANK: Record<string, number> = {
+  critical: 4, high: 3, medium: 2, low: 1,
+};
+
+type SortOrder = 'none' | 'asc' | 'desc';
+
 interface Props {
   tickets: Ticket[];
   onUpdated: () => void;
@@ -16,6 +24,8 @@ interface Props {
 }
 
 export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
+  const [sortOrder, setSortOrder] = useState<SortOrder>('none');
+
   const handleClose = async (id: number) => {
     await api.updateStatus(id, 'closed');
     onUpdated();
@@ -24,6 +34,23 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
     await api.updateStatus(id, 'open');
     onUpdated();
   };
+
+  const cycleSortOrder = () => {
+    setSortOrder(prev =>
+      prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none'
+    );
+  };
+
+  const sortedTickets = [...tickets].sort((a, b) => {
+    if (sortOrder === 'none') return 0;
+    const diff = (PRIORITY_RANK[a.priority] ?? 0) - (PRIORITY_RANK[b.priority] ?? 0);
+    return sortOrder === 'desc' ? -diff : diff;
+  });
+
+  const sortLabel =
+    sortOrder === 'desc' ? '↓ Priorität (hoch→niedrig)' :
+    sortOrder === 'asc'  ? '↑ Priorität (niedrig→hoch)' :
+    'Priorität sortieren';
 
   if (tickets.length === 0) {
     return (
@@ -34,8 +61,29 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
   }
 
   return (
+    <div>
+      {/* Sortier-Steuerung */}
+      <div className="flex items-center justify-end mb-2">
+        <button
+          data-testid="sort-by-priority"
+          onClick={cycleSortOrder}
+          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+            sortOrder !== 'none'
+              ? 'border-indigo-300 bg-indigo-50 text-indigo-700 font-medium'
+              : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+          }`}
+          title="Klicken zum Umschalten: Keine Sortierung → Absteigend → Aufsteigend"
+        >
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round"
+              d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+          </svg>
+          {sortLabel}
+        </button>
+      </div>
+
     <ul className="space-y-3">
-      {tickets.map((t) => {
+      {sortedTickets.map((t) => {
         const isCritical = t.priority === 'critical' && t.status === 'open';
         return (
           <li key={t.id} data-testid="ticket-item"
@@ -132,5 +180,6 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
         );
       })}
     </ul>
+    </div>
   );
 }

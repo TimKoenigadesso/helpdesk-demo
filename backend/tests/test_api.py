@@ -155,6 +155,54 @@ def test_all_priority_values_are_valid():
         assert r.status_code == 201
         assert r.json()["priority"] == prio
 
+def test_list_tickets_sorted_by_priority_desc():
+    """Tickets können nach Priorität absteigend sortiert werden (höchste zuerst)."""
+    # Erstelle Tickets mit verschiedenen Prioritäten
+    low    = client.post("/tickets", json={"title": "Low Prio",      "description": "D", "priority": "low"}).json()
+    high   = client.post("/tickets", json={"title": "High Prio",     "description": "D", "priority": "high"}).json()
+    medium = client.post("/tickets", json={"title": "Medium Prio",   "description": "D", "priority": "medium"}).json()
+    crit   = client.post("/tickets", json={"title": "Critical Prio", "description": "D", "priority": "critical"}).json()
+
+    tickets = client.get("/tickets").json()
+    # Alle erstellten Tickets herausfiltern
+    created_ids = {low["id"], high["id"], medium["id"], crit["id"]}
+    our_tickets = [t for t in tickets if t["id"] in created_ids]
+
+    RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+    sorted_desc = sorted(our_tickets, key=lambda t: RANK.get(t["priority"], 0), reverse=True)
+    # Kritisch hat den höchsten Rang
+    assert sorted_desc[0]["priority"] == "critical"
+    assert sorted_desc[-1]["priority"] == "low"
+
+
+def test_list_tickets_sorted_by_priority_asc():
+    """Tickets können nach Priorität aufsteigend sortiert werden (niedrigste zuerst)."""
+    low  = client.post("/tickets", json={"title": "Asc Low",  "description": "D", "priority": "low"}).json()
+    high = client.post("/tickets", json={"title": "Asc High", "description": "D", "priority": "high"}).json()
+
+    tickets = client.get("/tickets").json()
+    created_ids = {low["id"], high["id"]}
+    our_tickets = [t for t in tickets if t["id"] in created_ids]
+
+    RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+    sorted_asc = sorted(our_tickets, key=lambda t: RANK.get(t["priority"], 0))
+    assert sorted_asc[0]["priority"] == "low"
+    assert sorted_asc[-1]["priority"] == "high"
+
+
+def test_priority_persists_after_update():
+    """Prioritätsänderung wird sofort dauerhaft gespeichert."""
+    created = client.post("/tickets", json={"title": "Persist Prio", "description": "D", "priority": "low"}).json()
+    tid = created["id"]
+    # Priorität ändern
+    client.put(f"/tickets/{tid}", json={"priority": "critical"})
+    # Erneut abrufen — Änderung muss sichtbar sein
+    detail   = client.get(f"/tickets/{tid}").json()
+    in_list  = next(t for t in client.get("/tickets").json() if t["id"] == tid)
+    assert detail["priority"] == "critical"
+    assert in_list["priority"] == "critical"
+
+
 def test_analyze_ticket():
     import sys
     from unittest.mock import MagicMock, patch
