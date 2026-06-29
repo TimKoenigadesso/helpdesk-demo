@@ -268,6 +268,66 @@ test.describe('Helpdesk App', () => {
     await expect(lastNameInput).not.toHaveAttribute('required');
   });
 
+  // ── Reporter-Name-Tests (AGSDLC-23) ─────────────────────────────────────────
+
+  test('Reporter-Name-Feld ist im Formular sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('ticket-reporter-name')).toBeVisible();
+  });
+
+  test('Reporter-Name-Feld hat kein required-Attribut', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('ticket-reporter-name')).not.toHaveAttribute('required');
+  });
+
+  test('Ticket ohne Reporter-Name kann ohne Fehler erstellt werden', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Ohne Reporter Name Test');
+    await page.getByTestId('ticket-description').fill('Kein reporter_name angegeben');
+    // reporter-name bleibt leer
+    await page.getByTestId('ticket-submit').click();
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Ohne Reporter Name Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+  });
+
+  test('Ticket mit Reporter-Name erstellen und in der Liste anzeigen', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Reporter Name E2E Test');
+    await page.getByTestId('ticket-description').fill('Test mit reporter_name Feld');
+    await page.getByTestId('ticket-reporter-name').fill('Maria Muster');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Reporter Name E2E Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('ticket-reporter-name-display')).toHaveText('Maria Muster');
+  });
+
+  test('Reporter-Name über 100 Zeichen zeigt Validierungsfehlermeldung', async ({ page }) => {
+    await page.goto(BASE);
+    const longName = 'A'.repeat(101);
+    await page.getByTestId('ticket-reporter-name').fill(longName);
+    await expect(page.getByTestId('reporter-name-error')).toBeVisible();
+    await expect(page.getByTestId('reporter-name-error')).toContainText('100 Zeichen');
+  });
+
+  test('Reporter-Name-Zeichenzähler erscheint bei Eingabe', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-reporter-name').fill('Hans Müller');
+    await expect(page.getByTestId('reporter-name-counter')).toBeVisible();
+    await expect(page.getByTestId('reporter-name-counter')).toContainText('11/100');
+  });
+
+  test('Formular-Felder inkl. Reporter-Name werden nach Absenden zurückgesetzt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Reset Reporter Test');
+    await page.getByTestId('ticket-description').fill('Felder sollen zurückgesetzt werden');
+    await page.getByTestId('ticket-reporter-name').fill('Test Person');
+    await page.getByTestId('ticket-submit').click();
+
+    await expect(page.getByTestId('ticket-title')).toHaveValue('', { timeout: 5000 });
+    await expect(page.getByTestId('ticket-reporter-name')).toHaveValue('');
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 
