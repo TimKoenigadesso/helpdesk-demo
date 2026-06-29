@@ -1,77 +1,96 @@
-# Feature: Submitter-Name & Prioritätssortierung bei Ticket-Erstellung (AGSDLC-20)
+# Feature: Reporter-Name für Tickets (AGSDLC-23)
 
 ## Was wurde implementiert
 
-- **Getrennte Vor-/Nachname-Felder im Ticket-Formular:** Nutzer können beim Erstellen eines Tickets optional ihren Vor- und Nachnamen angeben; beide Felder sind nicht verpflichtend (`required`-Attribut fehlt bewusst).
-- **Persistierung in der Datenbank:** Die Spalten `first_name` und `last_name` (SQLite `TEXT NOT NULL DEFAULT ''`) wurden per `ALTER TABLE`-Migration ergänzt – bestehende Tickets erhalten automatisch leere Strings als Default, die Rückwärtskompatibilität bleibt gewahrt.
-- **Anzeige in der Ticket-Liste:** Sind Vor- und/oder Nachname gesetzt, erscheint unter dem Ticket-Titel der Hinweis „Gemeldet von: \<Vorname\> \<Nachname\>"; ohne Namensangabe bleibt der Bereich vollständig ausgeblendet.
-- **Neue Sortieroption `priority_lastname`:** Der `GET /tickets`-Endpunkt unterstützt den Query-Parameter `sort=priority_lastname`, der Tickets primär nach Priorität (Critical → High → Medium → Low) und sekundär alphabetisch nach Nachname sortiert.
-- **Whitespace-Bereinigung im Backend:** Führende und nachgestellte Leerzeichen werden in `first_name` und `last_name` serverseitig via `.strip()` entfernt – sowohl beim Anlegen als auch beim Aktualisieren eines Tickets.
+- **Neues Pflichtfeld `reporter_name`** im Ticket-Erstellungsformular: Melder können ihren vollständigen Namen (Vor- und Nachname kombiniert) als freies Textfeld angeben – optionales Feld, max. 100 Zeichen.
+- **Backend-Datenmodell erweitert**: `reporter_name` (TEXT NOT NULL DEFAULT '') als neue Spalte in der SQLite-Tabelle `tickets`; via `ALTER TABLE`-Migration rückwärtskompatibel nachgezogen.
+- **Serverseitige Validierung & Sanitisierung**: Pydantic-Validierung (`max_length=100`), serverseitiges Trimmen von Whitespace sowie hartes Kürzen auf 100 Zeichen als Defense-in-Depth.
+- **Frontend-Validierung mit Live-Feedback**: Zeichenzähler (`n/100`) bei aktiver Eingabe, Inline-Fehlermeldung bei Überschreitung, visueller Fehler-State (rotes Border/Background), Submit-Sperre bei invalid.
+- **`TicketList` zeigt `reporter_name` priorisiert**: Hat ein Ticket einen `reporter_name`, wird dieser in der „Gemeldet von"-Zeile bevorzugt angezeigt; andernfalls Fallback auf `first_name` / `last_name` (Abwärtskompatibilität).
 
 ---
 
 ## Neue API-Endpunkte
 
+Kein neuer Endpunkt – bestehende Endpunkte wurden um den Parameter `reporter_name` erweitert:
+
 | Methode | Pfad | Beschreibung | Parameter |
 |---------|------|--------------|-----------|
-| `GET` | `/tickets` | Alle Tickets auflisten | `sort` *(Query, optional)*: `created_at` (Standard, neueste zuerst) \| `priority_lastname` (nach Priorität desc + Nachname asc) |
-| `POST` | `/tickets` | Neues Ticket erstellen | **Body (JSON):** `title` *(string, required)*, `description` *(string, required)*, `priority` *(string, optional, default `medium`)*, `first_name` *(string, optional, default `""`)*, `last_name` *(string, optional, default `""`)* |
-| `PUT` | `/tickets/{id}` | Ticket aktualisieren | **Body (JSON, alle optional):** `title`, `description`, `status`, `category`, `priority`, `ai_suggestion`, `first_name`, `last_name` |
+| `POST` | `/tickets` | Ticket erstellen | `reporter_name` *(optional, string, max. 100 Zeichen)* |
+| `PUT` | `/tickets/{ticket_id}` | Ticket aktualisieren | `reporter_name` *(optional, string, max. 100 Zeichen)* |
+| `GET` | `/tickets` | Alle Tickets abrufen | – (Antwort enthält `reporter_name`) |
+| `GET` | `/tickets/{ticket_id}` | Einzelnes Ticket abrufen | – (Antwort enthält `reporter_name`) |
 
-> Alle Endpunkte geben das vollständige `Ticket`-Objekt zurück, das ab dieser Version die Felder `first_name: string` und `last_name: string` enthält.
+**Request-Body-Beispiel (`POST /tickets`):**
+```json
+{
+  "title": "Login schlägt fehl",
+  "description": "...",
+  "priority": "high",
+  "reporter_name": "Maria Muster"
+}
+```
+
+**Response-Erweiterung:**
+```json
+{
+  "id": 42,
+  "reporter_name": "Maria Muster",
+  "first_name": "",
+  "last_name": "",
+  ...
+}
+```
+
+> **Hinweis:** `reporter_name > 100 Zeichen` → HTTP `422 Unprocessable Entity` (Pydantic-Validierungsfehler). `null` wird serverseitig als `""` behandelt.
 
 ---
 
 ## Tests
 
-### Backend – `backend/tests/test_api.py` (11 neue Tests)
-
-| Testfunktion | Was wird geprüft |
-|---|---|
-| `test_create_ticket_with_first_and_last_name` | Vor- und Nachname werden beim Erstellen korrekt gespeichert und zurückgegeben |
-| `test_create_ticket_without_name_uses_empty_defaults` | Tickets ohne Namensangabe erhalten leere Strings als Default (Abwärtskompatibilität) |
-| `test_create_ticket_with_priority_and_name` | Kombination aus Priorität, Vor- und Nachname wird vollständig persistiert |
-| `test_first_last_name_visible_in_detail` | Namen erscheinen im Einzelticket-Endpunkt (`GET /tickets/{id}`) |
-| `test_first_last_name_visible_in_list` | Namen erscheinen in der Gesamtliste (`GET /tickets`) |
-| `test_update_ticket_first_last_name` | Vor- und Nachname können via `PUT /tickets/{id}` nachträglich geändert werden |
-| `test_sort_tickets_by_priority_and_lastname` | `sort=priority_lastname` liefert korrekte Reihenfolge: Critical-Adler vor Critical-Becker, dann High, dann Low |
-| `test_whitespace_stripped_from_name` | Leerzeichen am Rand werden serverseitig entfernt |
-| `test_create_ticket_only_first_name` | Nur Vorname ohne Nachname ist zulässig; `last_name` bleibt `""` |
-| `test_create_ticket_only_last_name` | Nur Nachname ohne Vorname ist zulässig; `first_name` bleibt `""` |
-| `test_all_four_priorities_with_names` | Alle vier Prioritätsstufen (`low`, `medium`, `high`, `critical`) funktionieren in Kombination mit Namen |
-
-### Frontend (E2E) – `frontend/tests/helpdesk.spec.ts` (7 neue Playwright-Tests)
+### Backend – `backend/tests/test_api.py` (10 neue Unit-Tests)
 
 | Testname | Was wird geprüft |
-|---|---|
-| Vorname- und Nachname-Felder sind im Formular sichtbar | Beide Eingabefelder rendern korrekt auf der Seite |
-| Ticket mit Vor- und Nachname erstellen und in der Liste anzeigen | End-to-End-Flow: Eingabe → Submit → Anzeige in der Liste mit korrekten `data-testid`-Werten |
-| Ticket ohne Namen erstellen – kein Submitter-Bereich sichtbar | Abwesenheit des „Gemeldet von"-Blocks, wenn keine Namen eingegeben wurden |
-| Ticket mit Priorität Kritisch und Name erstellen | Kombination aus Critical-Banner, Prioritäts-Label und Namensanzeige |
-| Formular-Felder werden nach dem Absenden zurückgesetzt | Alle Felder (Titel, Vorname, Nachname) sind nach erfolgreichem Submit leer |
-| Vorname-Feld hat kein `required`-Attribut | Optionalität des Vorname-Feldes wird explizit auf DOM-Ebene geprüft |
-| Nachname-Feld hat kein `required`-Attribut | Optionalität des Nachname-Feldes wird explizit auf DOM-Ebene geprüft |
+|----------|-----------------|
+| `test_create_ticket_with_reporter_name` | `reporter_name` wird korrekt gespeichert und zurückgegeben |
+| `test_create_ticket_without_reporter_name_uses_empty_default` | Fehlender `reporter_name` ergibt leeren String (Abwärtskompatibilität) |
+| `test_reporter_name_max_100_chars` | Genau 100 Zeichen werden akzeptiert (HTTP 201) |
+| `test_reporter_name_exceeds_100_chars_returns_422` | 101 Zeichen werden abgelehnt (HTTP 422) |
+| `test_reporter_name_visible_in_detail` | `reporter_name` erscheint im Einzel-Ticket-Endpoint |
+| `test_reporter_name_visible_in_list` | `reporter_name` erscheint im Listen-Endpoint |
+| `test_reporter_name_whitespace_stripped` | Führende/nachfolgende Leerzeichen werden serverseitig getrimmt |
+| `test_update_ticket_reporter_name` | `reporter_name` kann via `PUT` nachträglich geändert werden |
+| `test_reporter_name_with_priority` | `reporter_name` ist kompatibel mit allen Prioritäts-Feldern |
+| `test_reporter_name_null_treated_as_empty` | `null`-Wert wird graceful als `""` behandelt |
+
+### Frontend – `frontend/tests/helpdesk.spec.ts` (6 neue E2E-Tests mit Playwright)
+
+| Testname | Was wird geprüft |
+|----------|-----------------|
+| `Reporter-Name-Feld ist im Formular sichtbar` | Eingabefeld mit `data-testid="ticket-reporter-name"` wird gerendert |
+| `Reporter-Name-Feld hat kein required-Attribut` | Feld ist optional (kein HTML-`required`) |
+| `Ticket ohne Reporter-Name kann ohne Fehler erstellt werden` | Leeres Feld blockiert Submit nicht |
+| `Ticket mit Reporter-Name erstellen und in der Liste anzeigen` | Eingegebener Name erscheint via `ticket-reporter-name-display` in der Liste |
+| `Reporter-Name über 100 Zeichen zeigt Validierungsfehlermeldung` | Inline-Error (`reporter-name-error`) bei > 100 Zeichen sichtbar |
+| `Reporter-Name-Zeichenzähler erscheint bei Eingabe` | Counter (`reporter-name-counter`) zeigt korrektes Format `n/100` |
+| `Formular-Felder inkl. Reporter-Name werden nach Absenden zurückgesetzt` | Alle Felder leer nach erfolgreichem Submit |
 
 ---
 
 ## Deployment-Hinweise
 
 ### Datenbank-Migration
-Die Migration ist **automatisch** und **nicht-destruktiv**: `database.py` führt beim Start via `ALTER TABLE tickets ADD COLUMN` die zwei neuen Spalten ein. Schlägt das `ALTER TABLE` fehl (Spalte existiert bereits), wird der Fehler stillschweigend ignoriert. Kein manueller Migrations-Schritt notwendig.
-
-```sql
--- Wird automatisch durch init_db() ausgeführt:
-ALTER TABLE tickets ADD COLUMN first_name TEXT NOT NULL DEFAULT '';
-ALTER TABLE tickets ADD COLUMN last_name  TEXT NOT NULL DEFAULT '';
-```
-
-> ⚠️ **Bestehende Produktions-DBs:** Tickets, die vor diesem Release angelegt wurden, erhalten `first_name = ""` und `last_name = ""` als Standardwert – keine Datenverluste, keine Nullwerte.
+- **Automatisch** – `init_db()` führt beim Start `ALTER TABLE tickets ADD COLUMN reporter_name TEXT NOT NULL DEFAULT ''` aus.
+- Bestehende Tickets erhalten automatisch `reporter_name = ''` (SQLite-Default).
+- **Kein manueller Migrations-Schritt notwendig**, jedoch sollte beim ersten Start nach dem Deployment die Anwendung neu gestartet werden, damit `init_db()` ausgeführt wird.
 
 ### Neue Umgebungsvariablen
-Keine neuen Umgebungsvariablen erforderlich.
+Keine.
 
 ### Neue Abhängigkeiten
-Keine neuen Python- oder Node-Pakete. Die TypeScript-Compiler-Version wurde im Build-Artefakt (`tsconfig.app.tsbuildinfo`) von **5.9.3 → 6.0.3** aktualisiert – sicherstellen, dass die CI-Umgebung TypeScript ≥ 6.0 nutzt.
+Keine – das Feature nutzt ausschließlich bestehende Bibliotheken (`pydantic`, `fastapi`, `react`, `tailwindcss`).
 
-### Frontend
-Das TypeScript-Interface `Ticket` in `frontend/src/api.ts` wurde um `first_name: string` und `last_name: string` ergänzt. Alle Komponenten, die das `Ticket`-Objekt destructuren, sind abwärtskompatibel (leere Strings als Fallback).
+### Abwärtskompatibilität
+- ✅ API vollständig abwärtskompatibel: `reporter_name` ist in allen Endpunkten optional.
+- ✅ Bestehende Clients (ohne `reporter_name`) funktionieren unverändert.
+- ✅ `TicketList` fällt auf `first_name`/`last_name` zurück, wenn `reporter_name` leer ist.
