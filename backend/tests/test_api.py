@@ -510,3 +510,114 @@ def test_all_four_priorities_with_names():
         assert data["priority"] == prio
         assert data["first_name"] == fname
         assert data["last_name"] == lname
+
+# ── REWE UI-Design Feature-Tests (AGSDLC-32) ─────────────────────────────────
+
+def test_rewe_design_tickets_have_required_fields():
+    """REWE-UI: Tickets enthalten alle für das UI benötigten Felder (id, title,
+    description, status, priority, category, ai_suggestion, first_name, last_name)."""
+    r = client.post("/tickets", json={
+        "title": "REWE UI Test",
+        "description": "Ticket für REWE Design Validierung",
+        "priority": "high",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    for field in ("id", "title", "description", "status", "priority",
+                  "category", "ai_suggestion", "first_name", "last_name",
+                  "created_at", "updated_at"):
+        assert field in data, f"Fehlendes Feld: {field}"
+
+def test_rewe_design_category_values_match_ui_tiles():
+    """REWE-UI: Alle in den Kategoriekacheln verwendeten Kategorie-Werte sind
+    als gültige Backend-Kategorien zugelassen."""
+    # Die Kategoriekacheln im REWE-UI filtern nach diesen Backend-Kategorien:
+    rewe_ui_categories = {"bug", "feature", "question", "access", "infrastructure", "uncategorized"}
+    from models import VALID_CATEGORIES
+    assert rewe_ui_categories == VALID_CATEGORIES, (
+        f"UI-Kategorien stimmen nicht mit Backend überein: {rewe_ui_categories} vs {VALID_CATEGORIES}"
+    )
+
+def test_rewe_design_priority_values_match_ui_badges():
+    """REWE-UI: Alle für die Prioritäts-Badges verwendeten Werte sind gültige
+    Backend-Prioritäten (low, medium, high, critical)."""
+    rewe_priority_values = {"low", "medium", "high", "critical"}
+    from models import VALID_PRIORITIES
+    assert rewe_priority_values == VALID_PRIORITIES
+
+def test_rewe_design_hero_banner_ticket_count_via_api():
+    """REWE-UI: Das Hero-Banner zeigt offene Ticket-Anzahl — API liefert korrekte Zahl."""
+    # Drei Tickets erstellen, zwei offen, eines schliessen
+    t1 = client.post("/tickets", json={"title": "REWE Offen 1", "description": "D"}).json()
+    t2 = client.post("/tickets", json={"title": "REWE Offen 2", "description": "D"}).json()
+    t3 = client.post("/tickets", json={"title": "REWE Geschlossen", "description": "D"}).json()
+    client.put(f"/tickets/{t3['id']}", json={"status": "closed"})
+
+    all_tickets = client.get("/tickets").json()
+    open_tickets = [t for t in all_tickets if t["status"] == "open"]
+    # t1 und t2 müssen offen sein
+    open_ids = {t["id"] for t in open_tickets}
+    assert t1["id"] in open_ids
+    assert t2["id"] in open_ids
+    assert t3["id"] not in open_ids
+
+def test_rewe_design_navigation_categories_all_valid():
+    """REWE-UI: Jede Navigationskategorie kann als Ticket-Kategorie gesetzt werden."""
+    nav_cats = ["bug", "feature", "question", "access", "infrastructure"]
+    for cat in nav_cats:
+        t = client.post("/tickets", json={
+            "title": f"Nav Cat {cat}",
+            "description": "REWE Nav Test",
+        }).json()
+        r = client.put(f"/tickets/{t['id']}", json={"category": cat})
+        assert r.status_code == 200
+        assert r.json()["category"] == cat
+
+def test_rewe_design_critical_tickets_flagged_for_banner():
+    """REWE-UI: Kritische Tickets werden korrekt für den roten Banner markiert."""
+    t = client.post("/tickets", json={
+        "title": "Kritisches REWE Ticket",
+        "description": "Sofort bearbeiten",
+        "priority": "critical",
+    }).json()
+    assert t["priority"] == "critical"
+    assert t["status"] == "open"
+    # Banner im UI: priority == 'critical' AND status == 'open'
+    detail = client.get(f"/tickets/{t['id']}").json()
+    assert detail["priority"] == "critical"
+    assert detail["status"] == "open"
+
+def test_rewe_design_sort_by_priority_lastname_for_admin_view():
+    """REWE-UI Admin-View: Sortierung nach Priorität und Nachname funktioniert."""
+    client.post("/tickets", json={
+        "title": "REWE Sort A",
+        "description": "D",
+        "priority": "low",
+        "last_name": "Zenner",
+    })
+    client.post("/tickets", json={
+        "title": "REWE Sort B",
+        "description": "D",
+        "priority": "critical",
+        "last_name": "Abel",
+    })
+    r = client.get("/tickets?sort=priority_lastname")
+    assert r.status_code == 200
+    data = r.json()
+    rewe_tickets = [t for t in data if t["title"].startswith("REWE Sort")]
+    assert len(rewe_tickets) == 2
+    # Critical vor Low
+    assert rewe_tickets[0]["priority"] == "critical"
+    assert rewe_tickets[1]["priority"] == "low"
+
+def test_rewe_design_ticket_list_supports_filter_by_category():
+    """REWE-UI: Tickets können nach Kategorie gefiltert werden (Admin-Filter)."""
+    t = client.post("/tickets", json={
+        "title": "REWE Filter Test",
+        "description": "Kategorie-Filter",
+    }).json()
+    client.put(f"/tickets/{t['id']}", json={"category": "infrastructure"})
+
+    all_tickets = client.get("/tickets").json()
+    infra_tickets = [x for x in all_tickets if x["category"] == "infrastructure"]
+    assert any(x["id"] == t["id"] for x in infra_tickets)

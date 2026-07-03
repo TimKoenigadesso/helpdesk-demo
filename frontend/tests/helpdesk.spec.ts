@@ -268,6 +268,163 @@ test.describe('Helpdesk App', () => {
     await expect(lastNameInput).not.toHaveAttribute('required');
   });
 
+  // ── REWE UI-Design Tests (AGSDLC-32) ──────────────────────────────────────
+
+  test('REWE Header ist sichtbar mit roter Navigationsleiste', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rewe-header')).toBeVisible();
+    await expect(page.getByTestId('rewe-nav')).toBeVisible();
+    // Navigationsleiste hat REWE-Rot als Hintergrundfarbe
+    const nav = page.getByTestId('rewe-nav');
+    const bgColor = await nav.evaluate((el) => getComputedStyle(el).backgroundColor);
+    // rgb(204, 7, 30) entspricht #CC071E
+    expect(bgColor).toBe('rgb(204, 7, 30)');
+  });
+
+  test('REWE Navigation zeigt alle drei Menüpunkte', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('nav-maerkte')).toBeVisible();
+    await expect(page.getByTestId('nav-online-bestellen')).toBeVisible();
+    await expect(page.getByTestId('nav-rezepte')).toBeVisible();
+    await expect(page.getByTestId('nav-maerkte')).toContainText('Märkte');
+    await expect(page.getByTestId('nav-online-bestellen')).toContainText('Online bestellen');
+    await expect(page.getByTestId('nav-rezepte')).toContainText('Rezepte');
+  });
+
+  test('"Online bestellen" ist farblich hervorgehoben', async ({ page }) => {
+    await page.goto(BASE);
+    const onlineBestellen = page.getByTestId('nav-online-bestellen');
+    await expect(onlineBestellen).toBeVisible();
+    // Der Link hat eine besondere Hintergrundfarbe (dunkler als der Rest)
+    const bgColor = await onlineBestellen.evaluate((el) => getComputedStyle(el).backgroundColor);
+    // rgb(165, 0, 22) entspricht #a50016 — dunkler als REWE-Rot
+    expect(bgColor).toBe('rgb(165, 0, 22)');
+  });
+
+  test('REWE Header-Bar zeigt Logo, Suchfeld und Icons', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rewe-header-bar')).toBeVisible();
+    await expect(page.getByTestId('rewe-logo')).toBeVisible();
+    await expect(page.getByTestId('rewe-search')).toBeVisible();
+    await expect(page.getByTestId('rewe-search-input')).toBeVisible();
+    await expect(page.getByTestId('rewe-cart-button')).toBeVisible();
+  });
+
+  test('REWE Warenkorb-Button hat REWE-Rot als Hintergrundfarbe', async ({ page }) => {
+    await page.goto(BASE);
+    const cartBtn = page.getByTestId('rewe-cart-button');
+    await expect(cartBtn).toBeVisible();
+    const bgColor = await cartBtn.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(bgColor).toBe('rgb(204, 7, 30)');
+  });
+
+  test('REWE Hero-Banner ist sichtbar mit korrektem Titel', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rewe-hero-banner')).toBeVisible();
+    await expect(page.getByTestId('rewe-hero-title')).toBeVisible();
+    await expect(page.getByTestId('rewe-hero-title')).toContainText('Willkommen beim REWE Paketservice');
+  });
+
+  test('REWE Hero-Banner hat gelben Hintergrund', async ({ page }) => {
+    await page.goto(BASE);
+    const banner = page.getByTestId('rewe-hero-banner');
+    await expect(banner).toBeVisible();
+    const bgColor = await banner.evaluate((el) => getComputedStyle(el).backgroundColor);
+    // rgb(255, 224, 51) entspricht #FFE033
+    expect(bgColor).toBe('rgb(255, 224, 51)');
+  });
+
+  test('REWE Hero-Banner zeigt Unterzeile', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rewe-hero-subtitle')).toBeVisible();
+    await expect(page.getByTestId('rewe-hero-subtitle')).toContainText('Frische');
+  });
+
+  test('REWE Hero-Banner zeigt vier Vorteils-Badges', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rewe-hero-badges')).toBeVisible();
+    const badges = page.getByTestId('rewe-advantage-badge');
+    await expect(badges).toHaveCount(4);
+  });
+
+  test('Vorteils-Badges zeigen Sortiment, Mindestbestellwert, Rücksendung und Eigenmarken', async ({ page }) => {
+    await page.goto(BASE);
+    const badgesContainer = page.getByTestId('rewe-hero-badges');
+    await expect(badgesContainer).toContainText('Sortiment');
+    await expect(badgesContainer).toContainText('Mindestbestellwert');
+    await expect(badgesContainer).toContainText('Rücksendung');
+    await expect(badgesContainer).toContainText('Eigenmarken');
+  });
+
+  test('REWE Kategoriekacheln sind als Grid in zwei Reihen sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rewe-category-grid')).toBeVisible();
+    await expect(page.getByTestId('rewe-category-tiles')).toBeVisible();
+    // 8 Kacheln in zwei Reihen à 4 Spalten
+    const tiles = page.getByTestId('rewe-category-tiles').locator('button');
+    await expect(tiles).toHaveCount(8);
+  });
+
+  test('REWE Kategoriekacheln zeigen Angebote und Obst & Gemüse', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('cat-angebote')).toBeVisible();
+    await expect(page.getByTestId('cat-obst-gemuese')).toBeVisible();
+    await expect(page.getByTestId('cat-frische-kuehlung')).toBeVisible();
+    await expect(page.getByTestId('cat-brot-backwaren')).toBeVisible();
+  });
+
+  test('REWE Kategoriekacheln zweite Reihe ist sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('cat-milch-kaese')).toBeVisible();
+    await expect(page.getByTestId('cat-nudeln-reis')).toBeVisible();
+    await expect(page.getByTestId('cat-pflege')).toBeVisible();
+    await expect(page.getByTestId('cat-getraenke')).toBeVisible();
+  });
+
+  test('REWE Hero-Banner Titeltext ist in REWE-Rot gehalten', async ({ page }) => {
+    await page.goto(BASE);
+    const title = page.getByTestId('rewe-hero-title');
+    await expect(title).toBeVisible();
+    const color = await title.evaluate((el) => getComputedStyle(el).color);
+    // rgb(204, 7, 30) entspricht #CC071E
+    expect(color).toBe('rgb(204, 7, 30)');
+  });
+
+  test('REWE Suchfeld ist interaktiv', async ({ page }) => {
+    await page.goto(BASE);
+    const searchInput = page.getByTestId('rewe-search-input');
+    await expect(searchInput).toBeVisible();
+    await searchInput.fill('Tomaten');
+    await expect(searchInput).toHaveValue('Tomaten');
+  });
+
+  test('REWE Footer ist sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rewe-footer')).toBeVisible();
+  });
+
+  test('REWE Design bleibt im Admin-View konsistent', async ({ page }) => {
+    await page.goto(BASE);
+    // Header bleibt beim View-Wechsel erhalten
+    await page.getByTestId('nav-view-admin').click();
+    await expect(page.getByTestId('rewe-header')).toBeVisible();
+    await expect(page.getByTestId('rewe-nav')).toBeVisible();
+    await expect(page.getByText('IT-Admin Dashboard')).toBeVisible({ timeout: 5000 });
+    // Hero-Banner und Kategorien sind im Admin-View nicht sichtbar
+    await expect(page.getByTestId('rewe-hero-banner')).not.toBeVisible();
+    await expect(page.getByTestId('rewe-category-grid')).not.toBeVisible();
+  });
+
+  test('REWE Hero-Banner zeigt Ticket-Indikator wenn offene Tickets vorhanden', async ({ page }) => {
+    await page.goto(BASE);
+    // Ticket erstellen damit Indikator erscheint
+    await page.getByTestId('ticket-title').fill('REWE Indikator Test');
+    await page.getByTestId('ticket-description').fill('Test für Ticket-Indikator im Hero-Banner');
+    await page.getByTestId('ticket-submit').click();
+    // Indikator sollte sichtbar sein
+    await expect(page.getByTestId('rewe-hero-ticket-indicator')).toBeVisible({ timeout: 5000 });
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 
