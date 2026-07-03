@@ -23,12 +23,24 @@ export function TicketForm({ onCreated }: Props) {
   const [priority, setPriority] = useState('medium');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [reporterName, setReporterName] = useState('');
+  const [reporterNameError, setReporterNameError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+
+  const REPORTER_NAME_MAX = 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) return;
+
+    // Clientseitige Validierung: max. 100 Zeichen
+    if (reporterName.trim().length > REPORTER_NAME_MAX) {
+      setReporterNameError(`Der Name darf maximal ${REPORTER_NAME_MAX} Zeichen enthalten.`);
+      return;
+    }
+    setReporterNameError('');
+
     setLoading(true);
     try {
       await api.createTicket({
@@ -37,12 +49,15 @@ export function TicketForm({ onCreated }: Props) {
         priority,
         first_name: firstName,
         last_name: lastName,
+        reporter_name: reporterName,
       });
       setTitle('');
       setDescription('');
       setPriority('medium');
       setFirstName('');
       setLastName('');
+      setReporterName('');
+      setReporterNameError('');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -144,6 +159,41 @@ export function TicketForm({ onCreated }: Props) {
                 placeholder-gray-400"
             />
           </div>
+        </div>
+
+        {/* Reporter Name */}
+        <div className="mb-3">
+          <label
+            htmlFor="ticket-reporter-name"
+            className="block text-xs font-semibold text-gray-500 mb-1.5"
+          >
+            Name <span className="text-gray-400 font-normal">(optional, max. 100 Zeichen)</span>
+          </label>
+          <input
+            id="ticket-reporter-name"
+            type="text"
+            placeholder="Dein vollständiger Name"
+            value={reporterName}
+            onChange={(e) => {
+              setReporterName(e.target.value);
+              if (reporterNameError && e.target.value.trim().length <= REPORTER_NAME_MAX) {
+                setReporterNameError('');
+              }
+            }}
+            maxLength={101}
+            data-testid="ticket-reporter-name"
+            className={`block w-full px-4 py-2.5 rounded-xl border text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              placeholder-gray-400 ${reporterNameError ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+          />
+          {reporterNameError && (
+            <p
+              data-testid="reporter-name-error"
+              className="mt-1 text-xs text-red-600"
+            >
+              {reporterNameError}
+            </p>
+          )}
         </div>
 
         {/* Prioritäts-Auswahl */}
