@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { api } from '../api';
 
+/* ── REWE Design Tokens ── */
+const REWE_RED   = '#CC071E';
+const REWE_DARK  = '#a3051a';
+const REWE_LIGHT = '#f9e6e9';
+
 interface Props {
   ticketId: number;
   suggestion: string | null;
@@ -27,9 +32,19 @@ export function AiPanel({ ticketId, suggestion, onAnalyzed }: Props) {
   return (
     <div className="mt-3 pt-3 border-t border-gray-100">
       {suggestion ? (
-        <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-3">
-          <p className="text-xs font-semibold text-indigo-600 mb-1">KI-Antwortvorschlag</p>
-          <p className="text-sm text-indigo-900" data-testid="ai-suggestion">{suggestion}</p>
+        <div
+          className="rounded-lg p-3"
+          style={{ backgroundColor: REWE_LIGHT, border: `1px solid #f0b8c0` }}
+        >
+          <p
+            className="text-xs font-semibold mb-1"
+            style={{ color: REWE_RED, fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+          >
+            KI-Antwortvorschlag
+          </p>
+          <p className="text-sm" style={{ color: '#333333' }} data-testid="ai-suggestion">
+            {suggestion}
+          </p>
         </div>
       ) : (
         <button
@@ -37,8 +52,14 @@ export function AiPanel({ ticketId, suggestion, onAnalyzed }: Props) {
           disabled={loading}
           data-testid="analyze-button"
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-            bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed
-            transition-colors"
+            text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          style={{ backgroundColor: loading ? REWE_DARK : REWE_RED }}
+          onMouseEnter={e => {
+            if (!loading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_DARK;
+          }}
+          onMouseLeave={e => {
+            if (!loading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_RED;
+          }}
         >
           {loading ? (
             <>

@@ -268,6 +268,109 @@ test.describe('Helpdesk App', () => {
     await expect(lastNameInput).not.toHaveAttribute('required');
   });
 
+  // ── REWE Corporate Design Tests (AGSDLC-31) ────────────────────────────────
+
+  test('REWE Header ist sichtbar und hat die korrekte Primärfarbe', async ({ page }) => {
+    await page.goto(BASE);
+    const header = page.getByTestId('rewe-header');
+    await expect(header).toBeVisible();
+    // Hintergrundfarbe ist REWE Rot (#CC071E)
+    const bgColor = await header.evaluate(el =>
+      window.getComputedStyle(el).backgroundColor
+    );
+    // rgb(204, 7, 30) entspricht #CC071E
+    expect(bgColor).toBe('rgb(204, 7, 30)');
+  });
+
+  test('REWE Logo ist im Header sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    const logo = page.getByTestId('rewe-logo');
+    await expect(logo).toBeVisible();
+    // Logo trägt den korrekten aria-label
+    await expect(logo).toHaveAttribute('aria-label', 'REWE Logo');
+  });
+
+  test('REWE Brand-Titel "Helpdesk Demo" ist im Header sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    const brandTitle = page.getByTestId('rewe-brand-title');
+    await expect(brandTitle).toBeVisible();
+    await expect(brandTitle).toContainText('Helpdesk Demo');
+    // Schriftfarbe ist REWE Weiß
+    const color = await brandTitle.evaluate(el =>
+      window.getComputedStyle(el).color
+    );
+    expect(color).toBe('rgb(255, 255, 255)');
+  });
+
+  test('REWE Welcome-Banner ist sichtbar mit korrekter Hintergrundfarbe', async ({ page }) => {
+    await page.goto(BASE);
+    const banner = page.getByTestId('rewe-welcome-banner');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText('Wie können wir helfen?');
+    // Banner hat REWE-roten Hintergrund (Gradient → enthält #CC071E)
+    const bgImage = await banner.evaluate(el =>
+      window.getComputedStyle(el).backgroundImage
+    );
+    // Gradient mit REWE-Rot
+    expect(bgImage).toContain('rgb(204, 7, 30)');
+  });
+
+  test('REWE Footer ist sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    const footer = page.getByTestId('rewe-footer');
+    await expect(footer).toBeVisible();
+    await expect(footer).toContainText('REWE Digital');
+    // Footer-Hintergrund ist REWE Dunkelgrau (#333333)
+    const bgColor = await footer.evaluate(el =>
+      window.getComputedStyle(el).backgroundColor
+    );
+    expect(bgColor).toBe('rgb(51, 51, 51)');
+  });
+
+  test('Submit-Button hat REWE Primärfarbe als Hintergrund', async ({ page }) => {
+    await page.goto(BASE);
+    const submitBtn = page.getByTestId('ticket-submit');
+    await expect(submitBtn).toBeVisible();
+    const bgColor = await submitBtn.evaluate(el =>
+      window.getComputedStyle(el).backgroundColor
+    );
+    // #CC071E = rgb(204, 7, 30)
+    expect(bgColor).toBe('rgb(204, 7, 30)');
+  });
+
+  test('REWE Corporate Design bleibt auf mobiler Viewport-Größe erhalten', async ({ page }) => {
+    // Mobile Viewport (375px × 812px = iPhone X)
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(BASE);
+
+    // Header sichtbar
+    await expect(page.getByTestId('rewe-header')).toBeVisible();
+    // Logo sichtbar
+    await expect(page.getByTestId('rewe-logo')).toBeVisible();
+    // Formular-Felder weiterhin bedienbar
+    await expect(page.getByTestId('ticket-title')).toBeVisible();
+    await expect(page.getByTestId('ticket-submit')).toBeVisible();
+    // Welcome-Banner noch sichtbar
+    await expect(page.getByTestId('rewe-welcome-banner')).toBeVisible();
+  });
+
+  test('REWE Design bleibt in der Admin-Ansicht erhalten', async ({ page }) => {
+    await page.goto(BASE);
+    // In die Admin-Ansicht wechseln
+    await page.getByText('🔧 IT-Admin').click();
+    await expect(page.getByText('IT-Admin Dashboard')).toBeVisible({ timeout: 5000 });
+    // Header bleibt REWE-konform (weiterhin roter Hintergrund)
+    const header = page.getByTestId('rewe-header');
+    await expect(header).toBeVisible();
+    const bgColor = await header.evaluate(el =>
+      window.getComputedStyle(el).backgroundColor
+    );
+    expect(bgColor).toBe('rgb(204, 7, 30)');
+    // Admin-Badge in REWE-Farben
+    const adminBadge = page.getByText('🔧 Admin-Ansicht');
+    await expect(adminBadge).toBeVisible();
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 

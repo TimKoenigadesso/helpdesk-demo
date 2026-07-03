@@ -1,5 +1,9 @@
 import { Ticket } from '../api';
 
+/* ── REWE Design Tokens ── */
+const REWE_RED  = '#CC071E';
+const REWE_DARK = '#a3051a';
+
 interface Props {
   tickets: Ticket[];
   onAnalyzeAll: () => void;
@@ -30,17 +34,21 @@ export function AdminStats({ tickets, onAnalyzeAll, analyzing }: Props) {
   ).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-5">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-5"
+      style={{ borderTop: `3px solid ${REWE_RED}` }}
+    >
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         {[
-          { label: 'Gesamt', value: tickets.length, color: 'text-gray-800' },
-          { label: 'Offen', value: open.length, color: 'text-orange-600' },
-          { label: 'Kritisch', value: critical.length, color: 'text-red-600' },
-          { label: 'Geschlossen', value: closed.length, color: 'text-green-600' },
+          { label: 'Gesamt',      value: tickets.length, color: '#333333' },
+          { label: 'Offen',       value: open.length,     color: '#ea580c' },
+          { label: 'Kritisch',    value: critical.length, color: REWE_RED  },
+          { label: 'Geschlossen', value: closed.length,   color: '#16a34a' },
         ].map(s => (
           <div key={s.label} className="text-center bg-gray-50 rounded-xl py-3 px-2">
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-2xl font-bold" style={{ color: s.color, fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}>
+              {s.value}
+            </p>
             <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
           </div>
         ))}
@@ -60,7 +68,14 @@ export function AdminStats({ tickets, onAnalyzeAll, analyzing }: Props) {
             onClick={onAnalyzeAll}
             disabled={analyzing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-              bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              text-white disabled:opacity-50 transition-colors"
+            style={{ backgroundColor: analyzing ? REWE_DARK : REWE_RED }}
+            onMouseEnter={e => {
+              if (!analyzing) (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_DARK;
+            }}
+            onMouseLeave={e => {
+              if (!analyzing) (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_RED;
+            }}
           >
             {analyzing ? (
               <>

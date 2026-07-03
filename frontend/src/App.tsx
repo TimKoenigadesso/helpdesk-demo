@@ -5,6 +5,7 @@ import { TicketList } from './components/TicketList';
 import { AdminStats } from './components/AdminStats';
 import { AdminFilter, FilterState } from './components/AdminFilter';
 import { ExtensionSuggestions } from './components/ExtensionSuggestions';
+import { ReweLogo } from './components/ReweLogo';
 
 const BASE_URL =
   import.meta.env.VITE_API_URL ??
@@ -63,55 +64,75 @@ export default function App() {
   const userOpenTickets = tickets.filter(t => t.status === 'open');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    /* ── Hintergrundfarbe: REWE Hellgrau/Weiß ── */
+    <div className="min-h-screen" style={{ backgroundColor: '#f5f5f5', fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}>
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
+      {/* ── REWE Corporate Header ── */}
+      <header
+        data-testid="rewe-header"
+        className="sticky top-0 z-10 shadow-md"
+        style={{ backgroundColor: '#CC071E' }}
+      >
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          {/* Logo */}
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
 
+          {/* REWE Logo */}
+          <ReweLogo width={52} className="flex-shrink-0" />
+
+          {/* Titel */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-bold text-gray-900 leading-tight">Helpdesk Demo</h1>
-            <p className="text-[10px] text-gray-400 leading-tight">Powered by Claude AI</p>
+            <h1
+              data-testid="rewe-brand-title"
+              className="text-sm font-bold leading-tight"
+              style={{ color: '#FFFFFF', fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+            >
+              Helpdesk Demo
+            </h1>
+            <p className="text-[10px] leading-tight" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              Powered by Claude AI
+            </p>
           </div>
 
-          {/* View Toggle */}
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+          {/* View Toggle – REWE-konform (Weiß/Dunkelrot) */}
+          <div
+            className="flex rounded-lg overflow-hidden border"
+            style={{ borderColor: 'rgba(255,255,255,0.4)' }}
+          >
             <button
               onClick={() => setView('user')}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                view === 'user' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
-              }`}
+              className="px-3 py-1.5 text-xs font-medium transition-colors"
+              style={
+                view === 'user'
+                  ? { backgroundColor: '#FFFFFF', color: '#CC071E' }
+                  : { backgroundColor: 'transparent', color: '#FFFFFF' }
+              }
             >
               👤 Mitarbeiter
             </button>
             <button
               onClick={() => setView('admin')}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                view === 'admin' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
-              }`}
+              className="px-3 py-1.5 text-xs font-medium transition-colors"
+              style={
+                view === 'admin'
+                  ? { backgroundColor: '#FFFFFF', color: '#CC071E' }
+                  : { backgroundColor: 'transparent', color: '#FFFFFF' }
+              }
             >
               🔧 IT-Admin
             </button>
           </div>
 
-          {/* Reset */}
+          {/* Reset-Button */}
           <button
             onClick={handleReset}
             disabled={resetting}
             title="Demo auf Ausgangszustand zurücksetzen"
-            className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors
-              disabled:opacity-50 flex-shrink-0 ${
-                resetDone
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-              }`}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border
+              transition-colors disabled:opacity-50 flex-shrink-0"
+            style={
+              resetDone
+                ? { backgroundColor: 'rgba(255,255,255,0.25)', borderColor: 'rgba(255,255,255,0.6)', color: '#FFFFFF' }
+                : { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.4)', color: '#FFFFFF' }
+            }
           >
             <svg className={`w-3 h-3 ${resetting ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -129,16 +150,28 @@ export default function App() {
         {/* ── USER PORTAL ── */}
         {view === 'user' && (
           <>
-            {/* Welcome Banner */}
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-2xl p-6 mb-6 text-white">
-              <h2 className="text-xl font-bold mb-1">Wie können wir helfen?</h2>
-              <p className="text-indigo-200 text-sm">
+            {/* Welcome Banner – REWE Rot */}
+            <div
+              data-testid="rewe-welcome-banner"
+              className="rounded-2xl p-6 mb-6 text-white"
+              style={{ background: 'linear-gradient(135deg, #CC071E 0%, #a3051a 100%)' }}
+            >
+              <h2
+                className="text-xl font-bold mb-1"
+                style={{ fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+              >
+                Wie können wir helfen?
+              </h2>
+              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.85)' }}>
                 Störung melden, Zugang anfragen, Frage stellen — wir kümmern uns.
                 Unsere KI analysiert dein Ticket sofort.
               </p>
               {userOpenTickets.length > 0 && (
-                <div className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-lg px-3 py-1.5">
-                  <span className="w-2 h-2 rounded-full bg-orange-300 animate-pulse" />
+                <div
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-1.5"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                   <span className="text-xs font-medium">
                     {userOpenTickets.length} offene{userOpenTickets.length === 1 ? 's Ticket' : ' Tickets'}
                   </span>
@@ -151,7 +184,10 @@ export default function App() {
             {/* Open tickets for user */}
             {tickets.length > 0 && (
               <div className="mt-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                <h3
+                  className="text-sm font-semibold mb-3"
+                  style={{ color: '#333333' }}
+                >
                   Aktuelle Tickets
                 </h3>
                 <TicketList tickets={tickets} onUpdated={load} adminMode={false} />
@@ -168,11 +204,20 @@ export default function App() {
             {/* Admin header */}
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">IT-Admin Dashboard</h2>
-                <p className="text-xs text-gray-500">Alle Tickets verwalten · KI-Analyse · Prioritäten</p>
+                <h2
+                  className="text-lg font-bold"
+                  style={{ color: '#333333', fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+                >
+                  IT-Admin Dashboard
+                </h2>
+                <p className="text-xs" style={{ color: '#888888' }}>
+                  Alle Tickets verwalten · KI-Analyse · Prioritäten
+                </p>
               </div>
-              <span className="flex items-center gap-1.5 text-xs bg-indigo-50 text-indigo-700
-                border border-indigo-200 px-2.5 py-1 rounded-full font-medium">
+              <span
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border"
+                style={{ backgroundColor: '#f9e6e9', color: '#CC071E', borderColor: '#f0b8c0' }}
+              >
                 🔧 Admin-Ansicht
               </span>
             </div>
@@ -191,7 +236,7 @@ export default function App() {
             />
 
             {filteredTickets.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12" style={{ color: '#888888' }}>
                 <p className="text-sm">Keine Tickets für diesen Filter.</p>
               </div>
             ) : (
@@ -200,6 +245,15 @@ export default function App() {
           </>
         )}
       </main>
+
+      {/* ── REWE Footer ── */}
+      <footer
+        data-testid="rewe-footer"
+        className="mt-12 py-4 text-center text-xs"
+        style={{ backgroundColor: '#333333', color: 'rgba(255,255,255,0.6)' }}
+      >
+        <span style={{ color: 'rgba(255,255,255,0.4)' }}>© REWE Digital · Helpdesk Demo</span>
+      </footer>
     </div>
   );
 }

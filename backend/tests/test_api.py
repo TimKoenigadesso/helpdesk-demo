@@ -510,3 +510,71 @@ def test_all_four_priorities_with_names():
         assert data["priority"] == prio
         assert data["first_name"] == fname
         assert data["last_name"] == lname
+
+# ── REWE Corporate Design – Backend-Kompatibilitätstests (AGSDLC-31) ─────────
+# Das REWE Corporate Design ist ein reines Frontend-Feature (CSS/Komponenten).
+# Backend bleibt unverändert; diese Tests sichern die API-Stabilität ab,
+# auf der die Seite weiterhin basiert.
+
+def test_rewe_cd_health_endpoint_still_ok():
+    """Nach Corporate-Design-Umstellung ist der Health-Endpunkt weiterhin erreichbar."""
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+
+def test_rewe_cd_ticket_create_and_list_stable():
+    """Ticket-Erstellung und -Listing funktionieren weiterhin korrekt (CD-Regression)."""
+    r = client.post("/tickets", json={
+        "title": "REWE CD Regressionstest",
+        "description": "Sichert, dass die API nach CD-Umstellung stabil bleibt.",
+        "priority": "medium",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["title"] == "REWE CD Regressionstest"
+    assert data["priority"] == "medium"
+    assert data["status"] == "open"
+
+    # Ticket erscheint in der Liste
+    tickets = client.get("/tickets").json()
+    found = next((t for t in tickets if t["title"] == "REWE CD Regressionstest"), None)
+    assert found is not None
+
+def test_rewe_cd_ticket_response_has_all_required_fields():
+    """Ticket-Response enthält alle Felder, die das REWE-Frontend benötigt."""
+    r = client.post("/tickets", json={
+        "title": "REWE Feldprüfung",
+        "description": "Alle Felder für das REWE-Frontend müssen vorhanden sein.",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    # Felder, die die REWE-Frontend-Komponenten erwarten
+    for field in ("id", "title", "description", "status", "priority",
+                  "category", "ai_suggestion", "first_name", "last_name",
+                  "created_at", "updated_at"):
+        assert field in data, f"Pflichtfeld '{field}' fehlt in der API-Antwort"
+
+def test_rewe_cd_primary_color_token_contract():
+    """
+    Smoke-Test: Sichert, dass REWE Primärfarbe (#CC071E) als Konstante im
+    Backend-Code nicht fälschlicherweise als Filterkriterium gespeichert wird.
+    Die Farbe ist ein reines CSS-Token – API-Daten bleiben davon unberührt.
+    """
+    r = client.post("/tickets", json={
+        "title": "#CC071E REWE Rot Token Test",
+        "description": "Primärfarbe darf nicht in DB-Feldern auftauchen",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    # Farb-Tokens gehören nicht in API-Antwortfelder wie status, priority, category
+    assert data["status"] != "#CC071E"
+    assert data["priority"] != "#CC071E"
+    assert data["category"] != "#CC071E"
+
+def test_rewe_cd_reset_endpoint_still_works():
+    """Reset-Endpunkt funktioniert nach Corporate-Design-Umstellung weiterhin."""
+    r = client.post("/reset")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["seeded"] > 0

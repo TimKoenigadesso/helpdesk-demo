@@ -1,3 +1,42 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── REWE Corporate Design Tokens ────────────────────────────────────────────
+   Primär:    #CC071E  (REWE Rot)
+   Sekundär:  #FFFFFF  (Weiß)
+   Akzent:    #333333  (Dunkelgrau)
+   ──────────────────────────────────────────────────────────────────────── */
+:root {
+  --rewe-primary:       #CC071E;
+  --rewe-primary-dark:  #a3051a;
+  --rewe-primary-light: #f9e6e9;
+  --rewe-secondary:     #FFFFFF;
+  --rewe-accent:        #333333;
+  --rewe-accent-light:  #555555;
+  --rewe-accent-muted:  #888888;
+}
+
+/* Schriftarten: Thesis als Primärfont, System-Fallback */
+@font-face {
+  font-family: 'Thesis';
+  src: local('TheSans'), local('Thesis'), local('Arial');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  font-family: 'Thesis', 'TheSans', Arial, Helvetica, sans-serif;
+  color: var(--rewe-accent);
+}
+
+/* REWE-Primärfarbe als Tailwind-kompatible Utility-Klassen */
+.bg-rewe-primary        { background-color: var(--rewe-primary); }
+.bg-rewe-primary-dark   { background-color: var(--rewe-primary-dark); }
+.bg-rewe-primary-light  { background-color: var(--rewe-primary-light); }
+.text-rewe-primary      { color: var(--rewe-primary); }
+.text-rewe-accent       { color: var(--rewe-accent); }
+.border-rewe-primary    { border-color: var(--rewe-primary); }
+.ring-rewe-primary      { --tw-ring-color: var(--rewe-primary); }
+.focus\:ring-rewe-primary:focus { outline: none; box-shadow: 0 0 0 2px var(--rewe-primary); }
+.hover\:bg-rewe-primary-dark:hover { background-color: var(--rewe-primary-dark); }

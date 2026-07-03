@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, Comment } from '../api';
 
+/* ── REWE Design Tokens ── */
+const REWE_RED   = '#CC071E';
+const REWE_DARK  = '#a3051a';
+const REWE_LIGHT = '#f9e6e9';
+
 interface Props {
   ticketId: number;
   /** Im Admin-Modus wird der Autor auf "IT-Admin" gesetzt und Löschen ist möglich. */
@@ -64,13 +69,15 @@ export function CommentSection({ ticketId, adminMode = false }: Props) {
 
   return (
     <div className="mt-3" data-testid="comment-section">
-      {/* Toggle-Button */}
+      {/* Toggle-Button – REWE Rot bei hover */}
       <button
         type="button"
         onClick={() => setExpanded(prev => !prev)}
         data-testid="comment-toggle"
-        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600
-          transition-colors font-medium"
+        className="flex items-center gap-1.5 text-xs text-gray-500 font-medium transition-colors"
+        style={{ fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+        onMouseEnter={e => (e.currentTarget.style.color = REWE_RED)}
+        onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
         aria-expanded={expanded}
       >
         <svg
@@ -81,7 +88,10 @@ export function CommentSection({ ticketId, adminMode = false }: Props) {
         </svg>
         💬 Kommentare
         {comments.length > 0 && !expanded && (
-          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">
+          <span
+            className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-white"
+            style={{ backgroundColor: REWE_RED }}
+          >
             {comments.length}
           </span>
         )}
@@ -99,18 +109,18 @@ export function CommentSection({ ticketId, adminMode = false }: Props) {
               <div
                 key={c.id}
                 data-testid="comment-item"
-                className={`rounded-lg border px-3 py-2 text-xs ${
+                className="rounded-lg border px-3 py-2 text-xs"
+                style={
                   c.author === 'IT-Admin'
-                    ? 'bg-indigo-50 border-indigo-100'
-                    : 'bg-gray-50 border-gray-100'
-                }`}
+                    ? { backgroundColor: REWE_LIGHT, borderColor: '#f0b8c0' }
+                    : { backgroundColor: '#f9fafb', borderColor: '#f3f4f6' }
+                }
               >
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span
-                    className={`font-semibold ${
-                      c.author === 'IT-Admin' ? 'text-indigo-700' : 'text-gray-700'
-                    }`}
+                    className="font-semibold"
                     data-testid="comment-author"
+                    style={{ color: c.author === 'IT-Admin' ? REWE_RED : '#374151' }}
                   >
                     {c.author === 'IT-Admin' ? '🔧 IT-Admin' : '👤 Mitarbeiter'}
                   </span>
@@ -121,7 +131,9 @@ export function CommentSection({ ticketId, adminMode = false }: Props) {
                         type="button"
                         onClick={() => handleDelete(c.id)}
                         data-testid="comment-delete"
-                        className="text-gray-300 hover:text-red-500 transition-colors"
+                        className="text-gray-300 transition-colors"
+                        onMouseEnter={e => (e.currentTarget.style.color = REWE_RED)}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#d1d5db')}
                         title="Kommentar löschen"
                         aria-label="Kommentar löschen"
                       >
@@ -155,8 +167,9 @@ export function CommentSection({ ticketId, adminMode = false }: Props) {
               maxLength={2000}
               data-testid="comment-input"
               className="block w-full px-3 py-2 text-xs rounded-lg border border-gray-200
-                focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent
-                resize-none placeholder-gray-400 bg-white"
+                focus:outline-none resize-none placeholder-gray-400 bg-white"
+              onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${REWE_RED}`)}
+              onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
             />
             <div className="flex items-center justify-between mt-2 gap-2">
               {error && (
@@ -167,8 +180,16 @@ export function CommentSection({ ticketId, adminMode = false }: Props) {
                 disabled={submitting || !body.trim()}
                 data-testid="comment-submit"
                 className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                  font-semibold bg-indigo-600 text-white hover:bg-indigo-700
-                  disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed
+                  transition-colors"
+                style={{ backgroundColor: submitting ? REWE_DARK : REWE_RED }}
+                onMouseEnter={e => {
+                  if (!submitting && body.trim())
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_DARK;
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_RED;
+                }}
               >
                 {submitting ? (
                   <>

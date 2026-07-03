@@ -4,6 +4,10 @@ import { CategoryTag } from './CategoryTag';
 import { AiPanel } from './AiPanel';
 import { CommentSection } from './CommentSection';
 
+/* ── REWE Design Tokens ── */
+const REWE_RED   = '#CC071E';
+const REWE_LIGHT = '#f9e6e9';
+
 const PRIORITY_DOT: Record<string, string> = {
   critical: 'bg-red-500', high: 'bg-orange-400',
   medium: 'bg-yellow-400', low: 'bg-green-400',
@@ -38,20 +42,27 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
       {tickets.map((t) => {
         const isCritical = t.priority === 'critical' && t.status === 'open';
         return (
-          <li key={t.id} data-testid="ticket-item"
-            className={`bg-white rounded-xl border shadow-sm p-4 transition-colors ${
-              t.status === 'open'
-                ? isCritical
-                  ? 'border-red-400 ring-1 ring-red-300 bg-red-50'
-                  : 'border-gray-200'
-                : 'border-gray-100 opacity-75'
-            }`}>
+          <li
+            key={t.id}
+            data-testid="ticket-item"
+            className="bg-white rounded-xl shadow-sm p-4 transition-colors"
+            style={{
+              border: isCritical
+                ? `2px solid ${REWE_RED}`
+                : t.status === 'open'
+                  ? '1px solid #e5e7eb'
+                  : '1px solid #f3f4f6',
+              opacity: t.status === 'open' ? 1 : 0.75,
+              backgroundColor: isCritical ? REWE_LIGHT : '#FFFFFF',
+            }}
+          >
 
-            {/* Kritisch-Banner */}
+            {/* Kritisch-Banner – REWE Rot */}
             {isCritical && (
               <div
                 data-testid="critical-banner"
-                className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-red-700"
+                className="flex items-center gap-1.5 mb-2 text-xs font-semibold"
+                style={{ color: REWE_RED }}
               >
                 <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd"
@@ -67,15 +78,21 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Priority dot */}
                   <span className={`w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[t.priority] ?? 'bg-gray-300'}`} />
-                  <span data-testid="ticket-title-display"
-                    className="font-semibold text-gray-900 text-sm">
+                  <span
+                    data-testid="ticket-title-display"
+                    className="font-semibold text-sm"
+                    style={{ color: '#333333', fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+                  >
                     {t.title}
                   </span>
                   <span
                     data-testid="ticket-status-badge"
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      t.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}
+                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                    style={
+                      t.status === 'open'
+                        ? { backgroundColor: '#dcfce7', color: '#15803d' }
+                        : { backgroundColor: '#f3f4f6', color: '#6b7280' }
+                    }
                   >
                     {t.status === 'open' ? 'Offen' : 'Geschlossen'}
                   </span>
@@ -107,8 +124,14 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                   <button
                     onClick={() => handleClose(t.id)}
                     data-testid="close-ticket"
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs
-                      font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                    className="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
+                    style={{ borderColor: '#d1d5db', color: '#4b5563', backgroundColor: '#FFFFFF' }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#f9fafb';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FFFFFF';
+                    }}
                   >
                     Schliessen
                   </button>
@@ -116,8 +139,14 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                 {adminMode && t.status !== 'open' && (
                   <button
                     onClick={() => handleReopen(t.id)}
-                    className="px-3 py-1.5 rounded-lg border border-indigo-200 text-xs
-                      font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
+                    className="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
+                    style={{ borderColor: '#f0b8c0', color: REWE_RED, backgroundColor: REWE_LIGHT }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#f0b8c0';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_LIGHT;
+                    }}
                   >
                     Wieder öffnen
                   </button>

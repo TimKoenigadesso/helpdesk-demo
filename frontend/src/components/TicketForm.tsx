@@ -9,11 +9,16 @@ const QUICK_TEMPLATES = [
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: 'low',      label: 'Niedrig',  style: 'text-blue-700' },
-  { value: 'medium',   label: 'Mittel',   style: 'text-yellow-700' },
-  { value: 'high',     label: 'Hoch',     style: 'text-orange-700' },
-  { value: 'critical', label: 'Kritisch', style: 'text-red-700' },
+  { value: 'low',      label: 'Niedrig' },
+  { value: 'medium',   label: 'Mittel' },
+  { value: 'high',     label: 'Hoch' },
+  { value: 'critical', label: 'Kritisch' },
 ];
+
+/* ── REWE Design Tokens (inline, da Tailwind die Farbe nicht kennt) ── */
+const REWE_RED   = '#CC071E';
+const REWE_DARK  = '#a3051a';
+const REWE_LIGHT = '#f9e6e9';
 
 interface Props { onCreated: () => void; }
 
@@ -51,10 +56,23 @@ export function TicketForm({ onCreated }: Props) {
     }
   };
 
+  const inputClass =
+    'block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm ' +
+    'focus:outline-none focus:border-transparent placeholder-gray-400';
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-6 pt-5 pb-4 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900">Störung melden</h2>
+      {/* Card-Header mit REWE-Akzentlinie */}
+      <div
+        className="px-6 pt-5 pb-4 border-b border-gray-100"
+        style={{ borderTop: `3px solid ${REWE_RED}` }}
+      >
+        <h2
+          className="text-base font-bold"
+          style={{ color: '#333333', fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+        >
+          Störung melden
+        </h2>
         <p className="text-xs text-gray-500 mt-0.5">
           Beschreibe dein Problem — unsere KI kategorisiert und priorisiert es automatisch.
         </p>
@@ -71,9 +89,18 @@ export function TicketForm({ onCreated }: Props) {
               key={t.title}
               type="button"
               onClick={() => { setTitle(t.title); setDescription(t.description); }}
-              className="text-xs bg-gray-50 hover:bg-indigo-50 hover:text-indigo-700
-                border border-gray-200 hover:border-indigo-200 text-gray-600
-                px-2.5 py-1 rounded-lg transition-colors"
+              className="text-xs border border-gray-200 px-2.5 py-1 rounded-lg transition-colors"
+              style={{ backgroundColor: '#f5f5f5', color: '#555555' }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_LIGHT;
+                (e.currentTarget as HTMLButtonElement).style.color = REWE_RED;
+                (e.currentTarget as HTMLButtonElement).style.borderColor = '#f0b8c0';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#f5f5f5';
+                (e.currentTarget as HTMLButtonElement).style.color = '#555555';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = '#e5e7eb';
+              }}
             >
               {t.label}
             </button>
@@ -82,16 +109,20 @@ export function TicketForm({ onCreated }: Props) {
       </div>
 
       <form onSubmit={handleSubmit} className="px-6 pb-6">
+        {/* Titel */}
         <input
           placeholder="Kurze Beschreibung des Problems *"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
           data-testid="ticket-title"
-          className="block w-full mb-3 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-            focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
-            placeholder-gray-400"
+          className={`${inputClass} mb-3`}
+          style={{ fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+          onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${REWE_RED}`)}
+          onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
         />
+
+        {/* Beschreibung */}
         <textarea
           placeholder="Was genau passiert? Fehlermeldung, Gerät, seit wann? *"
           value={description}
@@ -99,9 +130,10 @@ export function TicketForm({ onCreated }: Props) {
           required
           rows={3}
           data-testid="ticket-description"
-          className="block w-full mb-3 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-            focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
-            resize-none placeholder-gray-400"
+          className={`${inputClass} mb-3 resize-none`}
+          style={{ fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+          onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${REWE_RED}`)}
+          onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
         />
 
         {/* Vorname / Nachname */}
@@ -109,7 +141,8 @@ export function TicketForm({ onCreated }: Props) {
           <div>
             <label
               htmlFor="ticket-first-name"
-              className="block text-xs font-semibold text-gray-500 mb-1.5"
+              className="block text-xs font-semibold mb-1.5"
+              style={{ color: '#555555' }}
             >
               Vorname
             </label>
@@ -120,15 +153,16 @@ export function TicketForm({ onCreated }: Props) {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               data-testid="ticket-first-name"
-              className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-                focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
-                placeholder-gray-400"
+              className={inputClass}
+              onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${REWE_RED}`)}
+              onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
             />
           </div>
           <div>
             <label
               htmlFor="ticket-last-name"
-              className="block text-xs font-semibold text-gray-500 mb-1.5"
+              className="block text-xs font-semibold mb-1.5"
+              style={{ color: '#555555' }}
             >
               Nachname
             </label>
@@ -139,9 +173,9 @@ export function TicketForm({ onCreated }: Props) {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               data-testid="ticket-last-name"
-              className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-                focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
-                placeholder-gray-400"
+              className={inputClass}
+              onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${REWE_RED}`)}
+              onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
             />
           </div>
         </div>
@@ -150,7 +184,8 @@ export function TicketForm({ onCreated }: Props) {
         <div className="mb-4">
           <label
             htmlFor="ticket-priority"
-            className="block text-xs font-semibold text-gray-500 mb-1.5"
+            className="block text-xs font-semibold mb-1.5"
+            style={{ color: '#555555' }}
           >
             Priorität
           </label>
@@ -160,8 +195,10 @@ export function TicketForm({ onCreated }: Props) {
             onChange={(e) => setPriority(e.target.value)}
             data-testid="ticket-priority"
             className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
-              bg-white text-gray-700"
+              focus:outline-none bg-white"
+            style={{ color: '#333333', fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif" }}
+            onFocus={e => (e.currentTarget.style.boxShadow = `0 0 0 2px ${REWE_RED}`)}
+            onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
           >
             {PRIORITY_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>
@@ -171,14 +208,24 @@ export function TicketForm({ onCreated }: Props) {
           </select>
         </div>
 
+        {/* Submit */}
         <div className="flex items-center gap-3 flex-wrap">
           <button
             type="submit"
             disabled={loading}
             data-testid="ticket-submit"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white
-              text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50
-              disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white
+              text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            style={{
+              backgroundColor: loading ? REWE_DARK : REWE_RED,
+              fontFamily: "'Thesis', 'TheSans', Arial, Helvetica, sans-serif",
+            }}
+            onMouseEnter={e => {
+              if (!loading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_DARK;
+            }}
+            onMouseLeave={e => {
+              if (!loading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = REWE_RED;
+            }}
           >
             {loading ? (
               <>
@@ -191,7 +238,7 @@ export function TicketForm({ onCreated }: Props) {
             ) : 'Ticket einreichen'}
           </button>
           {done && (
-            <span className="text-sm text-green-600 font-medium">
+            <span className="text-sm font-medium" style={{ color: '#16a34a' }}>
               ✓ Ticket erstellt — KI analysiert automatisch
             </span>
           )}
