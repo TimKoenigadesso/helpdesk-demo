@@ -510,3 +510,116 @@ def test_all_four_priorities_with_names():
         assert data["priority"] == prio
         assert data["first_name"] == fname
         assert data["last_name"] == lname
+
+# ── Reporter-Name-Feature-Tests (AGSDLC-30) ───────────────────────────────────
+
+def test_create_ticket_with_reporter_name():
+    """Ticket mit reporter_name erstellen — Feld wird gespeichert und zurückgegeben."""
+    r = client.post("/tickets", json={
+        "title": "Reporter Name Test",
+        "description": "Desc",
+        "reporter_name": "Maria Musterfrau",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] == "Maria Musterfrau"
+
+def test_create_ticket_without_reporter_name_defaults_to_empty():
+    """Ohne reporter_name wird ein leerer String als Standard gesetzt."""
+    r = client.post("/tickets", json={"title": "Kein Reporter Name", "description": "Desc"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] == ""
+
+def test_reporter_name_max_100_characters_accepted():
+    """Ein reporter_name mit exakt 100 Zeichen wird akzeptiert."""
+    name_100 = "A" * 100
+    r = client.post("/tickets", json={
+        "title": "Max Name Test",
+        "description": "Desc",
+        "reporter_name": name_100,
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == name_100
+
+def test_reporter_name_more_than_100_characters_rejected():
+    """Ein reporter_name mit mehr als 100 Zeichen wird mit HTTP 422 abgelehnt."""
+    name_101 = "B" * 101
+    r = client.post("/tickets", json={
+        "title": "Zu langer Name Test",
+        "description": "Desc",
+        "reporter_name": name_101,
+    })
+    assert r.status_code == 422
+
+def test_reporter_name_visible_in_detail():
+    """reporter_name erscheint in der Ticket-Detailansicht."""
+    created = client.post("/tickets", json={
+        "title": "Reporter Detail Test",
+        "description": "Desc",
+        "reporter_name": "Lena Beispiel",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["reporter_name"] == "Lena Beispiel"
+
+def test_reporter_name_visible_in_list():
+    """reporter_name erscheint in der Ticket-Übersichtsliste."""
+    client.post("/tickets", json={
+        "title": "Reporter List Test",
+        "description": "Desc",
+        "reporter_name": "Jonas Listner",
+    })
+    tickets = client.get("/tickets").json()
+    found = next((t for t in tickets if t["title"] == "Reporter List Test"), None)
+    assert found is not None
+    assert found["reporter_name"] == "Jonas Listner"
+
+def test_update_ticket_reporter_name():
+    """reporter_name eines Tickets kann nachträglich aktualisiert werden."""
+    created = client.post("/tickets", json={
+        "title": "Update Reporter Name",
+        "description": "Desc",
+        "reporter_name": "Alter Name",
+    }).json()
+    r = client.put(f"/tickets/{created['id']}", json={"reporter_name": "Neuer Name"})
+    assert r.status_code == 200
+    assert r.json()["reporter_name"] == "Neuer Name"
+
+def test_update_ticket_reporter_name_too_long_rejected():
+    """Beim Update wird ein reporter_name > 100 Zeichen mit 422 abgelehnt."""
+    created = client.post("/tickets", json={
+        "title": "Update Long Reporter Name",
+        "description": "Desc",
+    }).json()
+    r = client.put(f"/tickets/{created['id']}", json={"reporter_name": "C" * 101})
+    assert r.status_code == 422
+
+def test_reporter_name_whitespace_stripped():
+    """Führende/nachfolgende Leerzeichen werden aus reporter_name entfernt."""
+    r = client.post("/tickets", json={
+        "title": "Whitespace Reporter",
+        "description": "Desc",
+        "reporter_name": "  Trim Mich  ",
+    })
+    assert r.status_code == 201
+    assert r.json()["reporter_name"] == "Trim Mich"
+
+def test_reporter_name_combined_with_priority():
+    """reporter_name und priority werden gemeinsam korrekt gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "Reporter + Prio",
+        "description": "Desc",
+        "priority": "critical",
+        "reporter_name": "Max Kritisch",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["reporter_name"] == "Max Kritisch"
+    assert data["priority"] == "critical"
+
+def test_ticket_has_reporter_name_field():
+    """Jedes Ticket-Objekt enthält das Feld reporter_name."""
+    r = client.post("/tickets", json={"title": "Feld Prüfung", "description": "Desc"})
+    assert r.status_code == 201
+    data = r.json()
+    assert "reporter_name" in data

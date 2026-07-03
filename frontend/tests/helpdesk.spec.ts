@@ -268,6 +268,96 @@ test.describe('Helpdesk App', () => {
     await expect(lastNameInput).not.toHaveAttribute('required');
   });
 
+  // ── Reporter-Name-Feature-Tests (AGSDLC-30) ──────────────────────────────
+
+  test('Reporter-Name-Feld ist im Formular sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('ticket-reporter-name')).toBeVisible();
+  });
+
+  test('Reporter-Name-Feld hat kein required-Attribut', async ({ page }) => {
+    await page.goto(BASE);
+    const reporterNameInput = page.getByTestId('ticket-reporter-name');
+    await expect(reporterNameInput).not.toHaveAttribute('required');
+  });
+
+  test('Ticket mit reporter_name erstellen und in der Liste anzeigen', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Reporter Name E2E Test');
+    await page.getByTestId('ticket-description').fill('Beschreibung mit Reporter Name');
+    await page.getByTestId('ticket-reporter-name').fill('Maria Musterfrau');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Reporter Name E2E Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('ticket-reporter-name-display')).toHaveText('Maria Musterfrau');
+  });
+
+  test('Ticket ohne reporter_name erstellt — kein Submitter sichtbar wenn auch kein Vor-/Nachname', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Anonym Reporter Test');
+    await page.getByTestId('ticket-description').fill('Kein Reporter Name angegeben');
+    // Kein reporter_name, kein Vor-/Nachname → kein Submitter-Bereich
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Anonym Reporter Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('ticket-submitter')).not.toBeVisible();
+  });
+
+  test('Fehlermeldung erscheint bei mehr als 100 Zeichen im reporter_name', async ({ page }) => {
+    await page.goto(BASE);
+    const longName = 'A'.repeat(101);
+    await page.getByTestId('ticket-title').fill('Zu langer Name Test');
+    await page.getByTestId('ticket-description').fill('Name ist zu lang');
+    await page.getByTestId('ticket-reporter-name').fill(longName);
+    await page.getByTestId('ticket-submit').click();
+
+    // Fehlermeldung soll erscheinen
+    await expect(page.getByTestId('reporter-name-error')).toBeVisible({ timeout: 3000 });
+    // Ticket soll nicht erstellt worden sein
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Zu langer Name Test' });
+    await expect(ticketItem).not.toBeVisible();
+  });
+
+  test('Reporter-Name mit exakt 100 Zeichen wird akzeptiert', async ({ page }) => {
+    await page.goto(BASE);
+    const name100 = 'B'.repeat(100);
+    await page.getByTestId('ticket-title').fill('Exakt 100 Zeichen Name');
+    await page.getByTestId('ticket-description').fill('Genau 100 Zeichen');
+    await page.getByTestId('ticket-reporter-name').fill(name100);
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Exakt 100 Zeichen Name' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // Kein Fehler sichtbar
+    await expect(page.getByTestId('reporter-name-error')).not.toBeVisible();
+  });
+
+  test('Reporter-Name-Feld wird nach Submit zurückgesetzt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Reset Reporter Name Test');
+    await page.getByTestId('ticket-description').fill('Feld soll nach Submit leer sein');
+    await page.getByTestId('ticket-reporter-name').fill('Test User');
+    await page.getByTestId('ticket-submit').click();
+
+    await expect(page.getByTestId('ticket-reporter-name')).toHaveValue('', { timeout: 5000 });
+  });
+
+  test('Reporter-Name wird deutlich sichtbar in der Ticketdetailansicht angezeigt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Reporter Sichtbarkeit Test');
+    await page.getByTestId('ticket-description').fill('Name soll deutlich sichtbar sein');
+    await page.getByTestId('ticket-reporter-name').fill('Klaus Sichtbar');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Reporter Sichtbarkeit Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // Submitter-Bereich mit "Gemeldet von:" sichtbar
+    await expect(ticketItem.getByTestId('ticket-submitter')).toBeVisible();
+    await expect(ticketItem.getByTestId('ticket-reporter-name-display')).toHaveText('Klaus Sichtbar');
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 

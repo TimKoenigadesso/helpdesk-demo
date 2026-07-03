@@ -12,6 +12,7 @@ export interface Ticket {
   ai_suggestion: string | null;
   first_name: string;
   last_name: string;
+  reporter_name: string;
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +37,7 @@ export const api = {
     priority?: string;
     first_name?: string;
     last_name?: string;
+    reporter_name?: string;
   }): Promise<Ticket> {
     const r = await fetch(`${API_BASE}/tickets`, {
       method: 'POST',
