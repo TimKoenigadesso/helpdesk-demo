@@ -15,20 +15,62 @@ const PRIORITY_OPTIONS = [
   { value: 'critical', label: 'Kritisch', style: 'text-red-700' },
 ];
 
+// P0–P4 Prioritätsstufen (AGSDLC-36)
+const TICKET_PRIORITY_OPTIONS = [
+  {
+    value: '',
+    label: '— Bitte wählen —',
+    description: '',
+  },
+  {
+    value: 'P0',
+    label: 'P0 – Kritisch',
+    description: 'Produktionsausfall / systemkritischer Fehler, sofortiger Handlungsbedarf',
+  },
+  {
+    value: 'P1',
+    label: 'P1 – Hoch',
+    description: 'Schwere Beeinträchtigung des Betriebs, keine Umgehungslösung vorhanden',
+  },
+  {
+    value: 'P2',
+    label: 'P2 – Mittel',
+    description: 'Eingeschränkte Funktionalität, Umgehungslösung möglich',
+  },
+  {
+    value: 'P3',
+    label: 'P3 – Niedrig',
+    description: 'Geringer Einfluss auf den Betrieb, Bearbeitung kann warten',
+  },
+  {
+    value: 'P4',
+    label: 'P4 – Minimal',
+    description: 'Kosmetische Probleme oder Verbesserungsvorschläge ohne Dringlichkeit',
+  },
+];
+
 interface Props { onCreated: () => void; }
 
 export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [ticketPriority, setTicketPriority] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [reporterName, setReporterName] = useState('');
+  const [reporterNameError, setReporterNameError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [priorityError, setPriorityError] = useState(false);
+
+  const REPORTER_NAME_MAX = 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) return;
+    setPriorityError(false);
     setLoading(true);
     try {
       await api.createTicket({
@@ -37,12 +79,16 @@ export function TicketForm({ onCreated }: Props) {
         priority,
         first_name: firstName,
         last_name: lastName,
+        ticket_priority: ticketPriority || undefined,
       });
       setTitle('');
       setDescription('');
       setPriority('medium');
+      setTicketPriority('');
       setFirstName('');
       setLastName('');
+      setReporterName('');
+      setReporterNameError('');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
@@ -146,13 +192,120 @@ export function TicketForm({ onCreated }: Props) {
           </div>
         </div>
 
-        {/* Prioritäts-Auswahl */}
+        {/* P0–P4 Priorität (AGSDLC-36) */}
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <label
+              htmlFor="ticket-priority-level"
+              className="block text-xs font-semibold text-gray-500"
+            >
+              Priorität (P0–P4) <span className="text-red-500">*</span>
+            </label>
+            {/* Tooltip-Trigger */}
+            <div className="relative">
+              <button
+                type="button"
+                data-testid="priority-tooltip-trigger"
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+                onFocus={() => setShowTooltip(true)}
+                onBlur={() => setShowTooltip(false)}
+                className="w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold
+                  flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600
+                  transition-colors cursor-help focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                aria-label="Prioritätsstufen Erklärung"
+              >
+                ?
+              </button>
+              {showTooltip && (
+                <div
+                  data-testid="priority-tooltip"
+                  className="absolute left-6 top-0 z-20 w-72 bg-gray-900 text-white text-xs
+                    rounded-xl shadow-xl p-3 space-y-1.5"
+                  role="tooltip"
+                >
+                  <p className="font-semibold text-gray-100 mb-1">Prioritätsstufen:</p>
+                  {TICKET_PRIORITY_OPTIONS.filter(o => o.value).map(opt => (
+                    <div key={opt.value} className="flex gap-2">
+                      <span className={`font-bold flex-shrink-0 ${
+                        opt.value === 'P0' ? 'text-red-400' :
+                        opt.value === 'P1' ? 'text-orange-400' :
+                        opt.value === 'P2' ? 'text-yellow-400' :
+                        opt.value === 'P3' ? 'text-blue-400' : 'text-gray-400'
+                      }`}>
+                        {opt.value}
+                      </span>
+                      <span className="text-gray-300">{opt.description}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <select
+            id="ticket-priority-level"
+            value={ticketPriority}
+            onChange={(e) => {
+              setTicketPriority(e.target.value);
+              if (e.target.value) setPriorityError(false);
+            }}
+            data-testid="ticket-priority-level"
+            className={`block w-full px-4 py-2.5 rounded-xl border text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              bg-white ${
+                priorityError
+                  ? 'border-red-400 ring-1 ring-red-300'
+                  : 'border-gray-200 text-gray-700'
+              }`}
+          >
+            {TICKET_PRIORITY_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value} disabled={opt.value === '' ? false : false}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Fehlermeldung wenn kein Wert ausgewählt */}
+          {priorityError && (
+            <p
+              data-testid="priority-error"
+              className="mt-1 text-xs text-red-600 font-medium"
+            >
+              Bitte wähle eine Priorität aus (P0–P4).
+            </p>
+          )}
+
+          {/* Legende unterhalb des Dropdowns */}
+          <div
+            data-testid="priority-legend"
+            className="mt-2 flex flex-wrap gap-1.5"
+          >
+            {TICKET_PRIORITY_OPTIONS.filter(o => o.value).map(opt => (
+              <span
+                key={opt.value}
+                title={opt.description}
+                className={`text-[10px] px-1.5 py-0.5 rounded font-semibold cursor-help ${
+                  opt.value === 'P0' ? 'bg-red-100 text-red-700' :
+                  opt.value === 'P1' ? 'bg-orange-100 text-orange-700' :
+                  opt.value === 'P2' ? 'bg-yellow-100 text-yellow-700' :
+                  opt.value === 'P3' ? 'bg-blue-100 text-blue-700' :
+                                       'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {opt.value}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Bestehende Prioritäts-Auswahl (low/medium/high/critical) */}
         <div className="mb-4">
           <label
             htmlFor="ticket-priority"
             className="block text-xs font-semibold text-gray-500 mb-1.5"
           >
-            Priorität
+            Dringlichkeit
           </label>
           <select
             id="ticket-priority"

@@ -8,7 +8,7 @@ from database import init_db, get_conn
 from models import (
     TicketCreate, TicketUpdate, Ticket, TicketAnalysis,
     CommentCreate, Comment,
-    VALID_PRIORITIES, VALID_CATEGORIES, VALID_AUTHORS,
+    VALID_PRIORITIES, VALID_CATEGORIES, VALID_AUTHORS, VALID_TICKET_PRIORITIES,
 )
 from typing import List
 
@@ -56,10 +56,11 @@ def create_ticket(ticket: TicketCreate):
     priority = ticket.priority if ticket.priority in VALID_PRIORITIES else "medium"
     first_name = (ticket.first_name or "").strip()
     last_name = (ticket.last_name or "").strip()
+    ticket_priority = ticket.ticket_priority if ticket.ticket_priority in VALID_TICKET_PRIORITIES else None
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO tickets (title, description, priority, first_name, last_name) VALUES (?, ?, ?, ?, ?) RETURNING *",
-            (ticket.title, ticket.description, priority, first_name, last_name),
+            "INSERT INTO tickets (title, description, priority, first_name, last_name, ticket_priority) VALUES (?, ?, ?, ?, ?, ?) RETURNING *",
+            (ticket.title, ticket.description, priority, first_name, last_name, ticket_priority),
         )
         row = cur.fetchone()
     return dict(row)
@@ -95,6 +96,10 @@ def update_ticket(ticket_id: int, update: TicketUpdate):
         fields.append("first_name = ?"); values.append(update.first_name.strip())
     if update.last_name is not None:
         fields.append("last_name = ?"); values.append(update.last_name.strip())
+    if update.ticket_priority is not None:
+        if update.ticket_priority not in VALID_TICKET_PRIORITIES:
+            raise HTTPException(status_code=422, detail=f"Invalid ticket_priority. Must be one of: {sorted(VALID_TICKET_PRIORITIES)}")
+        fields.append("ticket_priority = ?"); values.append(update.ticket_priority)
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     fields.append("updated_at = datetime('now')")

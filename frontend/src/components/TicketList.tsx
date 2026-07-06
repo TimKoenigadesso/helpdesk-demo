@@ -1,5 +1,5 @@
 import { Ticket, api } from '../api';
-import { PriorityBadge } from './PriorityBadge';
+import { PriorityBadge, TicketPriorityBadge } from './PriorityBadge';
 import { CategoryTag } from './CategoryTag';
 import { AiPanel } from './AiPanel';
 import { CommentSection } from './CommentSection';
@@ -37,18 +37,19 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
     <ul className="space-y-3">
       {tickets.map((t) => {
         const isCritical = t.priority === 'critical' && t.status === 'open';
+        const isP0 = t.ticket_priority === 'P0' && t.status === 'open';
         return (
           <li key={t.id} data-testid="ticket-item"
             className={`bg-white rounded-xl border shadow-sm p-4 transition-colors ${
               t.status === 'open'
-                ? isCritical
+                ? (isCritical || isP0)
                   ? 'border-red-400 ring-1 ring-red-300 bg-red-50'
                   : 'border-gray-200'
                 : 'border-gray-100 opacity-75'
             }`}>
 
-            {/* Kritisch-Banner */}
-            {isCritical && (
+            {/* Kritisch-Banner (critical-Priorität oder P0-Ticketpriorität) */}
+            {(isCritical || isP0) && (
               <div
                 data-testid="critical-banner"
                 className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-red-700"
@@ -80,17 +81,25 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                     {t.status === 'open' ? 'Offen' : 'Geschlossen'}
                   </span>
                   <PriorityBadge priority={t.priority} />
+                  {/* P0–P4 Ticketpriorität (AGSDLC-36) */}
+                  <TicketPriorityBadge ticketPriority={t.ticket_priority} />
                   <CategoryTag category={t.category} />
                   {adminMode && (
                     <span className="text-[10px] text-gray-400">#{t.id}</span>
                   )}
                 </div>
-                {(t.first_name || t.last_name) && (
+                {(t.first_name || t.last_name || t.reporter_name) && (
                   <p className="mt-1 text-xs text-gray-500" data-testid="ticket-submitter">
                     <span className="font-medium">Gemeldet von:</span>{' '}
-                    <span data-testid="ticket-first-name-display">{t.first_name}</span>
-                    {t.first_name && t.last_name ? ' ' : ''}
-                    <span data-testid="ticket-last-name-display">{t.last_name}</span>
+                    {t.reporter_name ? (
+                      <span data-testid="ticket-reporter-name-display">{t.reporter_name}</span>
+                    ) : (
+                      <>
+                        <span data-testid="ticket-first-name-display">{t.first_name}</span>
+                        {t.first_name && t.last_name ? ' ' : ''}
+                        <span data-testid="ticket-last-name-display">{t.last_name}</span>
+                      </>
+                    )}
                   </p>
                 )}
                 <p className="mt-1.5 text-sm text-gray-600 line-clamp-2">{t.description}</p>
