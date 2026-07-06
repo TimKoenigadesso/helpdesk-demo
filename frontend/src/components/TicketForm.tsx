@@ -58,10 +58,14 @@ export function TicketForm({ onCreated }: Props) {
   const [ticketPriority, setTicketPriority] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [reporterName, setReporterName] = useState('');
+  const [reporterNameError, setReporterNameError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [priorityError, setPriorityError] = useState(false);
+
+  const REPORTER_NAME_MAX = 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +87,8 @@ export function TicketForm({ onCreated }: Props) {
       setTicketPriority('');
       setFirstName('');
       setLastName('');
+      setReporterName('');
+      setReporterNameError('');
       setDone(true);
       setTimeout(() => setDone(false), 3000);
       onCreated();
