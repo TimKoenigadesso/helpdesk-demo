@@ -1,77 +1,80 @@
-# Feature: Submitter-Name & Prioritätssortierung bei Ticket-Erstellung (AGSDLC-20)
+# Feature: P0–P4 Prioritätsstufen für Helpdesk-Tickets (AGSDLC-38)
 
 ## Was wurde implementiert
 
-- **Getrennte Vor-/Nachname-Felder im Ticket-Formular:** Nutzer können beim Erstellen eines Tickets optional ihren Vor- und Nachnamen angeben; beide Felder sind nicht verpflichtend (`required`-Attribut fehlt bewusst).
-- **Persistierung in der Datenbank:** Die Spalten `first_name` und `last_name` (SQLite `TEXT NOT NULL DEFAULT ''`) wurden per `ALTER TABLE`-Migration ergänzt – bestehende Tickets erhalten automatisch leere Strings als Default, die Rückwärtskompatibilität bleibt gewahrt.
-- **Anzeige in der Ticket-Liste:** Sind Vor- und/oder Nachname gesetzt, erscheint unter dem Ticket-Titel der Hinweis „Gemeldet von: \<Vorname\> \<Nachname\>"; ohne Namensangabe bleibt der Bereich vollständig ausgeblendet.
-- **Neue Sortieroption `priority_lastname`:** Der `GET /tickets`-Endpunkt unterstützt den Query-Parameter `sort=priority_lastname`, der Tickets primär nach Priorität (Critical → High → Medium → Low) und sekundär alphabetisch nach Nachname sortiert.
-- **Whitespace-Bereinigung im Backend:** Führende und nachgestellte Leerzeichen werden in `first_name` und `last_name` serverseitig via `.strip()` entfernt – sowohl beim Anlegen als auch beim Aktualisieren eines Tickets.
+- **Neues Datenbankfeld `p_level`**: Optionale Spalte (`TEXT`, nullable) in der `tickets`-Tabelle, die eine von fünf Stufen (`P0`–`P4`) aufnimmt; bestehende Tickets erhalten `NULL` via `ALTER TABLE`-Migration ohne Datenverlust.
+- **Backend-Validierung**: In `models.py` wurde `VALID_P_LEVELS = {"P0", "P1", "P2", "P3", "P4"}` definiert; `POST /tickets` und `PUT /tickets/{id}` validieren den Wert – ungültige Eingaben werden beim Erstellen stillschweigend auf `null` gesetzt, beim Update mit HTTP 422 abgelehnt.
+- **Frontend-Formular (`TicketForm`)**: Fünf Radio-Buttons (P0–P4) mit kontextsensitivem Tooltip-Banner und Reset-Button; P0 wird visuell rot hervorgehoben; ein versteckter `<select>` sichert Barrierefreiheit und Testbarkeit (`data-testid="ticket-p-level"`).
+- **Neue Komponente `PLevelBadge`**: Zeigt das P-Level farbkodiert als Badge an (P0 = Rot, P1 = Hellrot, P2 = Orange, P3 = Gelb, P4 = Grau); wird in `TicketList` neben dem bestehenden `PriorityBadge` gerendert.
+- **Erweiterter Kritisch-Banner**: In `TicketList` löst neben `priority=critical` nun auch `p_level=P0` den roten Warnseitenstreifen mit eigenem Text *„P0 – Sofortiger Handlungsbedarf (Eskalation)"* aus.
 
 ---
 
 ## Neue API-Endpunkte
 
-| Methode | Pfad | Beschreibung | Parameter |
-|---------|------|--------------|-----------|
-| `GET` | `/tickets` | Alle Tickets auflisten | `sort` *(Query, optional)*: `created_at` (Standard, neueste zuerst) \| `priority_lastname` (nach Priorität desc + Nachname asc) |
-| `POST` | `/tickets` | Neues Ticket erstellen | **Body (JSON):** `title` *(string, required)*, `description` *(string, required)*, `priority` *(string, optional, default `medium`)*, `first_name` *(string, optional, default `""`)*, `last_name` *(string, optional, default `""`)* |
-| `PUT` | `/tickets/{id}` | Ticket aktualisieren | **Body (JSON, alle optional):** `title`, `description`, `status`, `category`, `priority`, `ai_suggestion`, `first_name`, `last_name` |
+Das Feature erweitert **bestehende** Endpunkte; es wurden keine neuen Routen eingeführt.
 
-> Alle Endpunkte geben das vollständige `Ticket`-Objekt zurück, das ab dieser Version die Felder `first_name: string` und `last_name: string` enthält.
+| Methode | Pfad | Beschreibung | Relevante Parameter |
+|---------|------|--------------|---------------------|
+| `POST` | `/tickets` | Ticket erstellen | `p_level?: "P0"\|"P1"\|"P2"\|"P3"\|"P4"` (optional, default `null`; ungültige Werte → `null`) |
+| `GET` | `/tickets` | Alle Tickets auflisten | Antwort enthält jetzt das Feld `p_level: string \| null` je Ticket |
+| `GET` | `/tickets/{id}` | Ticket-Detail | Antwort enthält jetzt das Feld `p_level: string \| null` |
+| `PUT` | `/tickets/{id}` | Ticket aktualisieren | `p_level?: "P0"–"P4"` (optional; ungültige Werte → HTTP 422) |
 
 ---
 
 ## Tests
 
-### Backend – `backend/tests/test_api.py` (11 neue Tests)
-
-| Testfunktion | Was wird geprüft |
-|---|---|
-| `test_create_ticket_with_first_and_last_name` | Vor- und Nachname werden beim Erstellen korrekt gespeichert und zurückgegeben |
-| `test_create_ticket_without_name_uses_empty_defaults` | Tickets ohne Namensangabe erhalten leere Strings als Default (Abwärtskompatibilität) |
-| `test_create_ticket_with_priority_and_name` | Kombination aus Priorität, Vor- und Nachname wird vollständig persistiert |
-| `test_first_last_name_visible_in_detail` | Namen erscheinen im Einzelticket-Endpunkt (`GET /tickets/{id}`) |
-| `test_first_last_name_visible_in_list` | Namen erscheinen in der Gesamtliste (`GET /tickets`) |
-| `test_update_ticket_first_last_name` | Vor- und Nachname können via `PUT /tickets/{id}` nachträglich geändert werden |
-| `test_sort_tickets_by_priority_and_lastname` | `sort=priority_lastname` liefert korrekte Reihenfolge: Critical-Adler vor Critical-Becker, dann High, dann Low |
-| `test_whitespace_stripped_from_name` | Leerzeichen am Rand werden serverseitig entfernt |
-| `test_create_ticket_only_first_name` | Nur Vorname ohne Nachname ist zulässig; `last_name` bleibt `""` |
-| `test_create_ticket_only_last_name` | Nur Nachname ohne Vorname ist zulässig; `first_name` bleibt `""` |
-| `test_all_four_priorities_with_names` | Alle vier Prioritätsstufen (`low`, `medium`, `high`, `critical`) funktionieren in Kombination mit Namen |
-
-### Frontend (E2E) – `frontend/tests/helpdesk.spec.ts` (7 neue Playwright-Tests)
+### Backend – `backend/tests/test_api.py` (16 neue Tests)
 
 | Testname | Was wird geprüft |
-|---|---|
-| Vorname- und Nachname-Felder sind im Formular sichtbar | Beide Eingabefelder rendern korrekt auf der Seite |
-| Ticket mit Vor- und Nachname erstellen und in der Liste anzeigen | End-to-End-Flow: Eingabe → Submit → Anzeige in der Liste mit korrekten `data-testid`-Werten |
-| Ticket ohne Namen erstellen – kein Submitter-Bereich sichtbar | Abwesenheit des „Gemeldet von"-Blocks, wenn keine Namen eingegeben wurden |
-| Ticket mit Priorität Kritisch und Name erstellen | Kombination aus Critical-Banner, Prioritäts-Label und Namensanzeige |
-| Formular-Felder werden nach dem Absenden zurückgesetzt | Alle Felder (Titel, Vorname, Nachname) sind nach erfolgreichem Submit leer |
-| Vorname-Feld hat kein `required`-Attribut | Optionalität des Vorname-Feldes wird explizit auf DOM-Ebene geprüft |
-| Nachname-Feld hat kein `required`-Attribut | Optionalität des Nachname-Feldes wird explizit auf DOM-Ebene geprüft |
+|----------|-----------------|
+| `test_create_ticket_without_p_level_returns_null` | Fehlendes `p_level` → API gibt `null` zurück |
+| `test_create_ticket_with_p_level_p0` … `_p4` | Jede der fünf Stufen wird korrekt gespeichert und zurückgegeben |
+| `test_all_p_levels_are_valid` | Schleife über P0–P4: alle 201-Antworten mit korrektem Wert |
+| `test_create_ticket_invalid_p_level_stored_as_null` | `"P5"` → wird stillschweigend auf `null` gesetzt (kein Fehler beim Erstellen) |
+| `test_p_level_visible_in_detail` | Gespeichertes P-Level erscheint im Detail-Endpunkt |
+| `test_p_level_visible_in_list` | Gespeichertes P-Level erscheint in der Listenansicht |
+| `test_update_ticket_p_level` | Nachträgliches Setzen via `PUT` wird korrekt persistiert |
+| `test_update_ticket_invalid_p_level_returns_422` | Ungültiger Wert beim Update → HTTP 422 |
+| `test_create_ticket_p_level_and_priority_combined` | `priority` und `p_level` sind unabhängig kombinierbar |
+| `test_create_ticket_p_level_with_name` | `p_level` funktioniert gemeinsam mit `first_name`/`last_name` |
+| `test_p_level_none_does_not_trigger_validation_error` | Explizit `null` übergeben → valide, kein Fehler |
+
+### Frontend – `frontend/tests/helpdesk.spec.ts` (9 neue Playwright-Tests)
+
+| Testname | Was wird geprüft |
+|----------|-----------------|
+| `P-Level Optionen P0 bis P4 sind im Formular sichtbar` | Alle fünf Radio-Optionen und alle `<option>`-Elemente im versteckten Select vorhanden |
+| `Ticket ohne P-Level erstellen — kein p-level-badge sichtbar` | Kein `PLevelBadge` bei ungesetztem P-Level |
+| `Ticket mit P0 erstellen zeigt kritischen Banner und Badge` | Kritisch-Banner und Badge mit Text „P0" erscheinen |
+| `Ticket mit P1 erstellen zeigt P1-Badge` | P1-Badge sichtbar, **kein** Kritisch-Banner |
+| `Ticket mit P4 erstellen zeigt P4-Badge` | Niedrigste Stufe wird korrekt angezeigt |
+| `P-Level Tooltip erscheint beim Hover über Option` | Tooltip wird bei `mouseenter` sichtbar und enthält „P0" |
+| `P-Level Feld hat kein required-Attribut` | Bestätigt optionalen Charakter des Feldes |
+| `Formular-Felder werden nach dem Absenden zurückgesetzt (inkl. P-Level)` | Nach Submit ist `p_level` auf leer zurückgesetzt |
+| `P0 Ticket wird visuell rot hervorgehoben (ring-Klasse)` | Ticket-Item besitzt CSS-Klasse `ring-red-300` |
 
 ---
 
 ## Deployment-Hinweise
 
 ### Datenbank-Migration
-Die Migration ist **automatisch** und **nicht-destruktiv**: `database.py` führt beim Start via `ALTER TABLE tickets ADD COLUMN` die zwei neuen Spalten ein. Schlägt das `ALTER TABLE` fehl (Spalte existiert bereits), wird der Fehler stillschweigend ignoriert. Kein manueller Migrations-Schritt notwendig.
+Die Migration läuft **automatisch** beim Start über `init_db()` in `database.py`:
 
 ```sql
--- Wird automatisch durch init_db() ausgeführt:
-ALTER TABLE tickets ADD COLUMN first_name TEXT NOT NULL DEFAULT '';
-ALTER TABLE tickets ADD COLUMN last_name  TEXT NOT NULL DEFAULT '';
+-- Neue Spalte (nullable, kein DEFAULT-Zwang)
+ALTER TABLE tickets ADD COLUMN p_level TEXT;
 ```
 
-> ⚠️ **Bestehende Produktions-DBs:** Tickets, die vor diesem Release angelegt wurden, erhalten `first_name = ""` und `last_name = ""` als Standardwert – keine Datenverluste, keine Nullwerte.
+> **Kompatibilität:** Bestehende Tickets erhalten `NULL`; das Schema ist vollständig abwärtskompatibel – kein manuelles Migrations-Skript nötig.
 
 ### Neue Umgebungsvariablen
-Keine neuen Umgebungsvariablen erforderlich.
+Keine.
 
 ### Neue Abhängigkeiten
-Keine neuen Python- oder Node-Pakete. Die TypeScript-Compiler-Version wurde im Build-Artefakt (`tsconfig.app.tsbuildinfo`) von **5.9.3 → 6.0.3** aktualisiert – sicherstellen, dass die CI-Umgebung TypeScript ≥ 6.0 nutzt.
+Keine zusätzlichen Python-Packages oder npm-Pakete erforderlich.
 
-### Frontend
-Das TypeScript-Interface `Ticket` in `frontend/src/api.ts` wurde um `first_name: string` und `last_name: string` ergänzt. Alle Komponenten, die das `Ticket`-Objekt destructuren, sind abwärtskompatibel (leere Strings als Fallback).
+### Hinweise für den Review
+- Die Validierungslogik bei `POST /tickets` verwirft ungültige P-Level **still** (→ `null`), während `PUT /tickets/{id}` einen **422**-Fehler wirft. Dieses asymmetrische Verhalten ist so implementiert und getestet; bei Bedarf im Team abstimmen.
+- Das TypeScript-Interface `Ticket` in `frontend/src/api.ts` enthält jetzt `p_level: string | null` – alle Consumer des Interfaces sollten auf `null`-Fälle prüfen.
