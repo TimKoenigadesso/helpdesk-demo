@@ -11,6 +11,7 @@ class TicketCreate(BaseModel):
     priority: Optional[str] = "medium"
     first_name: Optional[str] = ""
     last_name: Optional[str] = ""
+    is_banana_software: Optional[bool] = False
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
@@ -21,6 +22,7 @@ class TicketUpdate(BaseModel):
     ai_suggestion: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    is_banana_software: Optional[bool] = None
 
 class Ticket(BaseModel):
     id: int
@@ -32,6 +34,7 @@ class Ticket(BaseModel):
     ai_suggestion: Optional[str] = None
     first_name: str = ""
     last_name: str = ""
+    is_banana_software: bool = False
     created_at: str
     updated_at: str
 
