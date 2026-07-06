@@ -510,3 +510,128 @@ def test_all_four_priorities_with_names():
         assert data["priority"] == prio
         assert data["first_name"] == fname
         assert data["last_name"] == lname
+
+# ── Bananen-Software Feature-Tests (AGSDLC-33) ───────────────────────────────
+
+def test_ticket_has_is_banana_software_field():
+    """Neues Ticket hat standardmäßig is_banana_software=False."""
+    r = client.post("/tickets", json={"title": "Banana Default", "description": "Desc"})
+    assert r.status_code == 201
+    data = r.json()
+    assert "is_banana_software" in data
+    assert data["is_banana_software"] is False
+
+def test_create_ticket_with_banana_software_true():
+    """Ticket kann mit is_banana_software=True erstellt werden."""
+    r = client.post("/tickets", json={
+        "title": "Banana True Test",
+        "description": "Desc",
+        "is_banana_software": True,
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["is_banana_software"] is True
+
+def test_create_ticket_with_banana_software_false():
+    """Ticket kann explizit mit is_banana_software=False erstellt werden."""
+    r = client.post("/tickets", json={
+        "title": "Banana False Test",
+        "description": "Desc",
+        "is_banana_software": False,
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["is_banana_software"] is False
+
+def test_update_ticket_set_banana_software():
+    """is_banana_software kann über PUT aktualisiert werden."""
+    created = client.post("/tickets", json={"title": "Banana Update", "description": "Desc"}).json()
+    assert created["is_banana_software"] is False
+
+    r = client.put(f"/tickets/{created['id']}", json={"is_banana_software": True})
+    assert r.status_code == 200
+    assert r.json()["is_banana_software"] is True
+
+def test_update_ticket_unset_banana_software():
+    """is_banana_software kann von True auf False gesetzt werden."""
+    created = client.post("/tickets", json={
+        "title": "Banana Unset",
+        "description": "Desc",
+        "is_banana_software": True,
+    }).json()
+    assert created["is_banana_software"] is True
+
+    r = client.put(f"/tickets/{created['id']}", json={"is_banana_software": False})
+    assert r.status_code == 200
+    assert r.json()["is_banana_software"] is False
+
+def test_banana_patch_endpoint_set_true():
+    """PATCH /tickets/:id/banana setzt is_banana_software=True."""
+    created = client.post("/tickets", json={"title": "Banana PATCH True", "description": "Desc"}).json()
+    r = client.patch(f"/tickets/{created['id']}/banana", json={"is_banana_software": True})
+    assert r.status_code == 200
+    assert r.json()["is_banana_software"] is True
+
+def test_banana_patch_endpoint_set_false():
+    """PATCH /tickets/:id/banana setzt is_banana_software=False."""
+    created = client.post("/tickets", json={
+        "title": "Banana PATCH False",
+        "description": "Desc",
+        "is_banana_software": True,
+    }).json()
+    r = client.patch(f"/tickets/{created['id']}/banana", json={"is_banana_software": False})
+    assert r.status_code == 200
+    assert r.json()["is_banana_software"] is False
+
+def test_banana_patch_endpoint_not_found():
+    """PATCH /tickets/99999/banana gibt 404 zurück."""
+    r = client.patch("/tickets/99999/banana", json={"is_banana_software": True})
+    assert r.status_code == 404
+
+def test_banana_state_persists_in_list():
+    """Bananen-Software-Markierung bleibt in der Ticket-Liste erhalten."""
+    client.post("/tickets", json={
+        "title": "Banana Persist Test",
+        "description": "Desc",
+        "is_banana_software": True,
+    })
+    tickets = client.get("/tickets").json()
+    found = next((t for t in tickets if t["title"] == "Banana Persist Test"), None)
+    assert found is not None
+    assert found["is_banana_software"] is True
+
+def test_banana_state_persists_in_detail():
+    """Bananen-Software-Markierung bleibt in der Ticket-Detailansicht erhalten."""
+    created = client.post("/tickets", json={
+        "title": "Banana Detail",
+        "description": "Desc",
+        "is_banana_software": True,
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["is_banana_software"] is True
+
+def test_banana_default_without_field():
+    """Ohne is_banana_software-Feld ist Standardwert False (rückwärtskompatibel)."""
+    r = client.post("/tickets", json={"title": "No Banana Field", "description": "Desc"})
+    assert r.status_code == 201
+    assert r.json()["is_banana_software"] is False
+
+def test_banana_toggle_via_patch():
+    """Bananen-Status kann mehrfach umgeschaltet werden."""
+    created = client.post("/tickets", json={"title": "Banana Toggle", "description": "Desc"}).json()
+    tid = created["id"]
+
+    # Aktivieren
+    r1 = client.patch(f"/tickets/{tid}/banana", json={"is_banana_software": True})
+    assert r1.status_code == 200
+    assert r1.json()["is_banana_software"] is True
+
+    # Deaktivieren
+    r2 = client.patch(f"/tickets/{tid}/banana", json={"is_banana_software": False})
+    assert r2.status_code == 200
+    assert r2.json()["is_banana_software"] is False
+
+    # Erneut aktivieren
+    r3 = client.patch(f"/tickets/{tid}/banana", json={"is_banana_software": True})
+    assert r3.status_code == 200
+    assert r3.json()["is_banana_software"] is True

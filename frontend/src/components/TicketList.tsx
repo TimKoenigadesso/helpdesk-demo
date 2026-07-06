@@ -3,6 +3,7 @@ import { PriorityBadge } from './PriorityBadge';
 import { CategoryTag } from './CategoryTag';
 import { AiPanel } from './AiPanel';
 import { CommentSection } from './CommentSection';
+import { BananaSoftwareCheckbox } from './BananaSoftwareCheckbox';
 
 const PRIORITY_DOT: Record<string, string> = {
   critical: 'bg-red-500', high: 'bg-orange-400',
@@ -133,6 +134,13 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                 onAnalyzed={onUpdated}
               />
             )}
+
+            {/* Bananen-Software Checkbox (REWE-Design) */}
+            <BananaSoftwareCheckbox
+              ticketId={t.id}
+              initialValue={t.is_banana_software}
+              onUpdated={onUpdated}
+            />
 
             {/* Kommentar-Bereich (immer sichtbar) */}
             <CommentSection ticketId={t.id} adminMode={adminMode} />

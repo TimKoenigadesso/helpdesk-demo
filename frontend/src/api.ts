@@ -12,6 +12,7 @@ export interface Ticket {
   ai_suggestion: string | null;
   first_name: string;
   last_name: string;
+  is_banana_software: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -80,5 +81,14 @@ export const api = {
       method: 'DELETE',
     });
     if (!r.ok) throw new Error('Failed to delete comment');
+  },
+  async setBananaSoftware(ticketId: number, isBanana: boolean): Promise<Ticket> {
+    const r = await fetch(`${API_BASE}/tickets/${ticketId}/banana`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_banana_software: isBanana }),
+    });
+    if (!r.ok) throw new Error('Failed to update banana software flag');
+    return r.json() as Promise<Ticket>;
   },
 };

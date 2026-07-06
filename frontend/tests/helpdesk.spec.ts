@@ -268,6 +268,123 @@ test.describe('Helpdesk App', () => {
     await expect(lastNameInput).not.toHaveAttribute('required');
   });
 
+  // ── Bananen-Software Feature-Tests (AGSDLC-33) ─────────────────────────────
+
+  test('Bananen-Software Checkbox ist bei jedem Ticket sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Banana Visibility Test');
+    await page.getByTestId('ticket-description').fill('Test für Banana Checkbox Sichtbarkeit');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Banana Visibility Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('banana-software-container')).toBeVisible();
+    await expect(ticketItem.getByTestId('banana-software-checkbox')).toBeVisible();
+    await expect(ticketItem.getByTestId('banana-software-label')).toBeVisible();
+  });
+
+  test('Bananen-Software Checkbox ist initial deaktiviert (aria-checked=false)', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Banana Initial State Test');
+    await page.getByTestId('ticket-description').fill('Standardzustand der Checkbox prüfen');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Banana Initial State Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    const checkbox = ticketItem.getByTestId('banana-software-checkbox');
+    await expect(checkbox).toHaveAttribute('aria-checked', 'false');
+  });
+
+  test('Bananen-Software Checkbox aktivieren markiert Ticket und zeigt Badge', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Banana Activate Test');
+    await page.getByTestId('ticket-description').fill('Checkbox aktivieren und Badge prüfen');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Banana Activate Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+
+    const checkbox = ticketItem.getByTestId('banana-software-checkbox');
+    await expect(checkbox).toHaveAttribute('aria-checked', 'false');
+
+    // Checkbox aktivieren
+    await checkbox.click();
+
+    // aria-checked soll auf true gesetzt sein
+    await expect(checkbox).toHaveAttribute('aria-checked', 'true', { timeout: 5000 });
+
+    // Badge "MARKIERT" soll erscheinen
+    await expect(ticketItem.getByTestId('banana-software-badge')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('Bananen-Software Checkbox deaktivieren entfernt die Markierung', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Banana Deactivate Test');
+    await page.getByTestId('ticket-description').fill('Checkbox deaktivieren und Badge prüfen');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Banana Deactivate Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+
+    const checkbox = ticketItem.getByTestId('banana-software-checkbox');
+
+    // Erst aktivieren
+    await checkbox.click();
+    await expect(checkbox).toHaveAttribute('aria-checked', 'true', { timeout: 5000 });
+    await expect(ticketItem.getByTestId('banana-software-badge')).toBeVisible({ timeout: 5000 });
+
+    // Dann deaktivieren
+    await checkbox.click();
+    await expect(checkbox).toHaveAttribute('aria-checked', 'false', { timeout: 5000 });
+    await expect(ticketItem.getByTestId('banana-software-badge')).not.toBeVisible({ timeout: 5000 });
+  });
+
+  test('Bananen-Software Checkbox hat kein required-Attribut', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Banana No Required Test');
+    await page.getByTestId('ticket-description').fill('Kein required-Attribut auf Checkbox');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Banana No Required Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+
+    // Checkbox ist ein Button, kein Input – kein required-Attribut
+    const checkbox = ticketItem.getByTestId('banana-software-checkbox');
+    await expect(checkbox).not.toHaveAttribute('required');
+  });
+
+  test('Bananen-Software Checkbox ist per Tastatur bedienbar (Tab + Space)', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Banana Keyboard Test');
+    await page.getByTestId('ticket-description').fill('Tastatursteuerung der Checkbox prüfen');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Banana Keyboard Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+
+    const checkbox = ticketItem.getByTestId('banana-software-checkbox');
+    await expect(checkbox).toHaveAttribute('aria-checked', 'false');
+
+    // Fokus setzen und Space drücken
+    await checkbox.focus();
+    await page.keyboard.press('Space');
+    await expect(checkbox).toHaveAttribute('aria-checked', 'true', { timeout: 5000 });
+  });
+
+  test('Bananen-Software Checkbox hat aria-label für Barrierefreiheit', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Banana A11y Test');
+    await page.getByTestId('ticket-description').fill('Aria-Label für Barrierefreiheit');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Banana A11y Test' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+
+    const checkbox = ticketItem.getByTestId('banana-software-checkbox');
+    await expect(checkbox).toHaveAttribute('aria-label', 'Als Bananen-Software kennzeichnen');
+    await expect(checkbox).toHaveAttribute('role', 'checkbox');
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 
