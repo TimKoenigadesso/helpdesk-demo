@@ -510,3 +510,123 @@ def test_all_four_priorities_with_names():
         assert data["priority"] == prio
         assert data["first_name"] == fname
         assert data["last_name"] == lname
+
+# ── MMC-Design Feature-Tests (AGSDLC-37) ─────────────────────────────────────
+
+def test_mmc_create_ticket_with_full_name():
+    """MMC-Formular: Meldung mit Vor- und Nachname wird korrekt gespeichert."""
+    r = client.post("/tickets", json={
+        "title": "MMC Support Anfrage",
+        "description": "Tonanlage funktioniert nicht beim Konzert.",
+        "first_name": "Sophie",
+        "last_name": "Wagner",
+        "priority": "high",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["first_name"] == "Sophie"
+    assert data["last_name"] == "Wagner"
+    assert data["priority"] == "high"
+    assert data["title"] == "MMC Support Anfrage"
+
+def test_mmc_name_appears_in_ticket_overview():
+    """MMC: Name des Melders erscheint in der Ticket-Übersicht."""
+    client.post("/tickets", json={
+        "title": "MMC Übersicht Test",
+        "description": "Mikrofon kein Signal.",
+        "first_name": "Laura",
+        "last_name": "Becker",
+    })
+    tickets = client.get("/tickets").json()
+    found = next((t for t in tickets if t["title"] == "MMC Übersicht Test"), None)
+    assert found is not None
+    assert found["first_name"] == "Laura"
+    assert found["last_name"] == "Becker"
+
+def test_mmc_name_appears_in_ticket_detail():
+    """MMC: Name des Melders erscheint in der Ticket-Detailansicht."""
+    created = client.post("/tickets", json={
+        "title": "MMC Detail Test",
+        "description": "Lautsprecher übersteuert.",
+        "first_name": "Tim",
+        "last_name": "Hoffmann",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["first_name"] == "Tim"
+    assert detail["last_name"] == "Hoffmann"
+
+def test_mmc_ticket_without_name_still_accepted():
+    """MMC: Ticket ohne Namensangabe wird vom Backend akzeptiert (optionale Felder)."""
+    r = client.post("/tickets", json={
+        "title": "MMC Anonym",
+        "description": "Problem ohne Namensangabe.",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    # Backend setzt leere Strings als Default
+    assert data["first_name"] == ""
+    assert data["last_name"] == ""
+
+def test_mmc_name_whitespace_trimmed_on_submit():
+    """MMC: Leerzeichen um den Namen werden beim Speichern entfernt."""
+    r = client.post("/tickets", json={
+        "title": "MMC Trim Test",
+        "description": "Test mit Leerzeichen im Namen.",
+        "first_name": "  Julia  ",
+        "last_name": "  Schäfer  ",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["first_name"] == "Julia"
+    assert data["last_name"] == "Schäfer"
+
+def test_mmc_combined_name_with_all_priorities():
+    """MMC: Meldung mit Namen kann für alle Prioritätsstufen erstellt werden."""
+    for prio in ["low", "medium", "high", "critical"]:
+        r = client.post("/tickets", json={
+            "title": f"MMC Prio {prio}",
+            "description": f"Anfrage mit Priorität {prio}.",
+            "first_name": "Max",
+            "last_name": "Muster",
+            "priority": prio,
+        })
+        assert r.status_code == 201
+        data = r.json()
+        assert data["priority"] == prio
+        assert data["first_name"] == "Max"
+        assert data["last_name"] == "Muster"
+
+def test_mmc_ticket_status_defaults_to_open():
+    """MMC: Neu erstellte Meldungen haben immer Status 'open'."""
+    r = client.post("/tickets", json={
+        "title": "MMC Status Test",
+        "description": "Status-Prüfung bei Erstellung.",
+        "first_name": "Petra",
+        "last_name": "Braun",
+    })
+    assert r.status_code == 201
+    assert r.json()["status"] == "open"
+
+def test_mmc_first_name_only_accepted():
+    """MMC: Nur Vorname ohne Nachname wird vom Backend akzeptiert."""
+    r = client.post("/tickets", json={
+        "title": "MMC Nur Vorname",
+        "description": "Test Vorname-Only.",
+        "first_name": "Elias",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["first_name"] == "Elias"
+    assert data["last_name"] == ""
+
+def test_mmc_last_name_only_accepted():
+    """MMC: Nur Nachname ohne Vorname wird vom Backend akzeptiert."""
+    r = client.post("/tickets", json={
+        "title": "MMC Nur Nachname",
+        "description": "Test Nachname-Only.",
+        "last_name": "Richter",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["first_name"] == ""
+    assert data["last_name"] == "Richter"

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, Ticket } from './api';
-import { TicketForm } from './components/TicketForm';
+import { MmcTicketForm } from './components/MmcTicketForm';
 import { TicketList } from './components/TicketList';
 import { AdminStats } from './components/AdminStats';
 import { AdminFilter, FilterState } from './components/AdminFilter';
@@ -129,24 +129,53 @@ export default function App() {
         {/* ── USER PORTAL ── */}
         {view === 'user' && (
           <>
-            {/* Welcome Banner */}
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-2xl p-6 mb-6 text-white">
-              <h2 className="text-xl font-bold mb-1">Wie können wir helfen?</h2>
-              <p className="text-indigo-200 text-sm">
-                Störung melden, Zugang anfragen, Frage stellen — wir kümmern uns.
-                Unsere KI analysiert dein Ticket sofort.
+            {/* MMC Welcome Banner */}
+            <div
+              data-testid="mmc-welcome-banner"
+              className="rounded-2xl p-6 mb-6 text-white shadow-md"
+              style={{ background: 'linear-gradient(135deg, #C8102E 0%, #9B0D22 100%)' }}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                {/* MMC Musiknoten-Logo */}
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: '#FFFFFF20' }}
+                >
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold leading-tight">my-music-company</h2>
+                  <p className="text-white/70 text-xs">Support-Portal</p>
+                </div>
+                {/* Gold-Akzent */}
+                <div
+                  className="ml-auto h-8 w-1 rounded-full opacity-75"
+                  style={{ backgroundColor: '#E8B800' }}
+                />
+              </div>
+              <p className="text-white/85 text-sm leading-relaxed">
+                Haben Sie ein technisches Problem oder eine Frage? Füllen Sie das
+                Formular aus — wir melden uns so schnell wie möglich bei Ihnen.
               </p>
               {userOpenTickets.length > 0 && (
-                <div className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-lg px-3 py-1.5">
-                  <span className="w-2 h-2 rounded-full bg-orange-300 animate-pulse" />
+                <div
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-1.5"
+                  style={{ backgroundColor: '#FFFFFF20' }}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full animate-pulse"
+                    style={{ backgroundColor: '#E8B800' }}
+                  />
                   <span className="text-xs font-medium">
-                    {userOpenTickets.length} offene{userOpenTickets.length === 1 ? 's Ticket' : ' Tickets'}
+                    {userOpenTickets.length} offene{userOpenTickets.length === 1 ? ' Anfrage' : ' Anfragen'}
                   </span>
                 </div>
               )}
             </div>
 
-            <TicketForm onCreated={load} />
+            <MmcTicketForm onCreated={load} />
 
             {/* Open tickets for user */}
             {tickets.length > 0 && (

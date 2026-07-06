@@ -268,6 +268,119 @@ test.describe('Helpdesk App', () => {
     await expect(lastNameInput).not.toHaveAttribute('required');
   });
 
+  // ── My-Music-Company-Design Feature-Tests (AGSDLC-37) ──────────────────────
+
+  test('MMC-Formular ist sichtbar und hat Corporate-Design-Header', async ({ page }) => {
+    await page.goto(BASE);
+    // Das MMC-Formular ist im User-Portal sichtbar
+    await expect(page.getByTestId('mmc-ticket-form')).toBeVisible();
+    // MMC Header mit Brand-Farbe vorhanden
+    await expect(page.getByTestId('mmc-form-header')).toBeVisible();
+    // MMC Logo-Bereich sichtbar
+    await expect(page.getByTestId('mmc-logo')).toBeVisible();
+  });
+
+  test('MMC Welcome-Banner wird im User-Portal angezeigt', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('mmc-welcome-banner')).toBeVisible();
+    // Banner enthält den Markennamen
+    await expect(page.getByTestId('mmc-welcome-banner')).toContainText('my-music-company');
+  });
+
+  test('MMC-Formular zeigt Namensfelder an', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('ticket-first-name')).toBeVisible();
+    await expect(page.getByTestId('ticket-last-name')).toBeVisible();
+  });
+
+  test('MMC-Formular zeigt Validierungsfehler bei leerem Namen und Absenden', async ({ page }) => {
+    await page.goto(BASE);
+    // Titel und Beschreibung ausfüllen, aber KEINEN Namen angeben
+    await page.getByTestId('ticket-title').fill('MMC Test ohne Name');
+    await page.getByTestId('ticket-description').fill('Validierungstest ohne Namenseingabe');
+    // Sicherstellen, dass Namensfelder leer sind
+    await page.getByTestId('ticket-first-name').fill('');
+    await page.getByTestId('ticket-last-name').fill('');
+    // Absenden versuchen
+    await page.getByTestId('ticket-submit').click();
+    // Validierungsfehlermeldung erscheint
+    await expect(page.getByTestId('mmc-name-error')).toBeVisible({ timeout: 3000 });
+    await expect(page.getByTestId('mmc-name-error')).toContainText('Namen');
+  });
+
+  test('MMC-Formular: Validierungsfehler verschwindet bei Namenseingabe', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('MMC Fehler Reset Test');
+    await page.getByTestId('ticket-description').fill('Fehlerreset testen');
+    // Erst ohne Namen absenden
+    await page.getByTestId('ticket-submit').click();
+    await expect(page.getByTestId('mmc-name-error')).toBeVisible({ timeout: 3000 });
+    // Dann Vorname eingeben → Fehler verschwindet
+    await page.getByTestId('ticket-first-name').fill('Anna');
+    await expect(page.getByTestId('mmc-name-error')).not.toBeVisible();
+  });
+
+  test('MMC-Bestätigungsmeldung erscheint nach erfolgreicher Übermittlung', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('MMC Bestätigungs Test');
+    await page.getByTestId('ticket-description').fill('Test für Bestätigungsmeldung im MMC-Design');
+    await page.getByTestId('ticket-first-name').fill('Sophie');
+    await page.getByTestId('ticket-last-name').fill('Wagner');
+    await page.getByTestId('ticket-submit').click();
+    // MMC-Bestätigungsmeldung im Corporate Design erscheint
+    await expect(page.getByTestId('mmc-success-message')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('mmc-success-message')).toContainText('erfolgreich übermittelt');
+    await expect(page.getByTestId('mmc-success-message')).toContainText('my-music-company');
+  });
+
+  test('MMC-Bestätigungsmeldung: Ticket erscheint in der Übersicht nach Absenden', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('MMC Übersicht Ticket');
+    await page.getByTestId('ticket-description').fill('Dieses Ticket soll in der Übersicht erscheinen');
+    await page.getByTestId('ticket-first-name').fill('Max');
+    await page.getByTestId('ticket-last-name').fill('Mustermann');
+    await page.getByTestId('ticket-submit').click();
+    // Ticket erscheint in der Liste
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'MMC Übersicht Ticket' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // Name ist in der Ticket-Karte sichtbar
+    await expect(ticketItem.getByTestId('ticket-first-name-display')).toHaveText('Max');
+    await expect(ticketItem.getByTestId('ticket-last-name-display')).toHaveText('Mustermann');
+  });
+
+  test('MMC-Formular: Nur Vorname reicht für erfolgreiche Übermittlung', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('MMC Nur Vorname Test');
+    await page.getByTestId('ticket-description').fill('Nur Vorname angegeben');
+    await page.getByTestId('ticket-first-name').fill('Lena');
+    // Nachname bleibt leer
+    await page.getByTestId('ticket-submit').click();
+    await expect(page.getByTestId('mmc-success-message')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('MMC-Formular: Nur Nachname reicht für erfolgreiche Übermittlung', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('MMC Nur Nachname Test');
+    await page.getByTestId('ticket-description').fill('Nur Nachname angegeben');
+    // Vorname bleibt leer
+    await page.getByTestId('ticket-last-name').fill('Schmidt');
+    await page.getByTestId('ticket-submit').click();
+    await expect(page.getByTestId('mmc-success-message')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('MMC-Formular: Felder werden nach Absenden zurückgesetzt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('MMC Reset Felder');
+    await page.getByTestId('ticket-description').fill('Felder-Reset im MMC-Formular');
+    await page.getByTestId('ticket-first-name').fill('Tom');
+    await page.getByTestId('ticket-last-name').fill('Meier');
+    await page.getByTestId('ticket-submit').click();
+    // Nach dem Submit sollen alle Felder leer sein
+    await expect(page.getByTestId('ticket-title')).toHaveValue('', { timeout: 5000 });
+    await expect(page.getByTestId('ticket-first-name')).toHaveValue('');
+    await expect(page.getByTestId('ticket-last-name')).toHaveValue('');
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 
