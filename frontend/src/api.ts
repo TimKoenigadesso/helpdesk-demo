@@ -12,7 +12,7 @@ export interface Ticket {
   ai_suggestion: string | null;
   first_name: string;
   last_name: string;
-  reporter_name: string;
+  ticket_priority: string | null;  // P0–P4 (AGSDLC-36)
   created_at: string;
   updated_at: string;
 }
@@ -37,7 +37,7 @@ export const api = {
     priority?: string;
     first_name?: string;
     last_name?: string;
-    reporter_name?: string;
+    ticket_priority?: string;  // P0–P4 (AGSDLC-36)
   }): Promise<Ticket> {
     const r = await fetch(`${API_BASE}/tickets`, {
       method: 'POST',

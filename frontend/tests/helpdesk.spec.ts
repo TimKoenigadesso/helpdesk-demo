@@ -268,94 +268,98 @@ test.describe('Helpdesk App', () => {
     await expect(lastNameInput).not.toHaveAttribute('required');
   });
 
-  // ── Reporter-Name-Feature-Tests (AGSDLC-30) ──────────────────────────────
+  // ── P0–P4 Ticketpriorität Feature-Tests (AGSDLC-36) ──────────────────────────
 
-  test('Reporter-Name-Feld ist im Formular sichtbar', async ({ page }) => {
+  test('P0–P4 Dropdown ist im Formular sichtbar mit Standardwert leer', async ({ page }) => {
     await page.goto(BASE);
-    await expect(page.getByTestId('ticket-reporter-name')).toBeVisible();
+    const priorityLevelSelect = page.getByTestId('ticket-priority-level');
+    await expect(priorityLevelSelect).toBeVisible();
+    // Standardmäßig ist kein P-Level vorgewählt (leerer Wert)
+    await expect(priorityLevelSelect).toHaveValue('');
   });
 
-  test('Reporter-Name-Feld hat kein required-Attribut', async ({ page }) => {
+  test('Alle fünf P-Stufen sind im Dropdown wählbar', async ({ page }) => {
     await page.goto(BASE);
-    const reporterNameInput = page.getByTestId('ticket-reporter-name');
-    await expect(reporterNameInput).not.toHaveAttribute('required');
+    const sel = page.getByTestId('ticket-priority-level');
+    await expect(sel.locator('option[value="P0"]')).toContainText('P0');
+    await expect(sel.locator('option[value="P1"]')).toContainText('P1');
+    await expect(sel.locator('option[value="P2"]')).toContainText('P2');
+    await expect(sel.locator('option[value="P3"]')).toContainText('P3');
+    await expect(sel.locator('option[value="P4"]')).toContainText('P4');
   });
 
-  test('Ticket mit reporter_name erstellen und in der Liste anzeigen', async ({ page }) => {
+  test('Prioritäts-Legende ist im Formular sichtbar', async ({ page }) => {
     await page.goto(BASE);
-    await page.getByTestId('ticket-title').fill('Reporter Name E2E Test');
-    await page.getByTestId('ticket-description').fill('Beschreibung mit Reporter Name');
-    await page.getByTestId('ticket-reporter-name').fill('Maria Musterfrau');
+    await expect(page.getByTestId('priority-legend')).toBeVisible();
+  });
+
+  test('Tooltip-Button ist sichtbar und zeigt Tooltip bei Hover', async ({ page }) => {
+    await page.goto(BASE);
+    const tooltipTrigger = page.getByTestId('priority-tooltip-trigger');
+    await expect(tooltipTrigger).toBeVisible();
+    await tooltipTrigger.hover();
+    await expect(page.getByTestId('priority-tooltip')).toBeVisible();
+  });
+
+  test('Ticket mit P0-Priorität erstellen — Badge und Banner sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('P0 Kritisches Ticket E2E');
+    await page.getByTestId('ticket-description').fill('Produktionsausfall — sofortiger Handlungsbedarf');
+    await page.getByTestId('ticket-priority-level').selectOption('P0');
     await page.getByTestId('ticket-submit').click();
 
-    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Reporter Name E2E Test' });
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'P0 Kritisches Ticket E2E' });
     await expect(ticketItem).toBeVisible({ timeout: 5000 });
-    await expect(ticketItem.getByTestId('ticket-reporter-name-display')).toHaveText('Maria Musterfrau');
+    // P0-Badge sichtbar
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).toBeVisible();
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).toHaveText('P0');
+    // Kritisch-Banner sichtbar (visuelles Highlight für P0)
+    await expect(ticketItem.getByTestId('critical-banner')).toBeVisible();
   });
 
-  test('Ticket ohne reporter_name erstellt — kein Submitter sichtbar wenn auch kein Vor-/Nachname', async ({ page }) => {
+  test('Ticket mit P1-Priorität erstellen — Badge sichtbar', async ({ page }) => {
     await page.goto(BASE);
-    await page.getByTestId('ticket-title').fill('Anonym Reporter Test');
-    await page.getByTestId('ticket-description').fill('Kein Reporter Name angegeben');
-    // Kein reporter_name, kein Vor-/Nachname → kein Submitter-Bereich
+    await page.getByTestId('ticket-title').fill('P1 Hoch-Prio Ticket E2E');
+    await page.getByTestId('ticket-description').fill('Schwere Beeinträchtigung ohne Workaround');
+    await page.getByTestId('ticket-priority-level').selectOption('P1');
     await page.getByTestId('ticket-submit').click();
 
-    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Anonym Reporter Test' });
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'P1 Hoch-Prio Ticket E2E' });
     await expect(ticketItem).toBeVisible({ timeout: 5000 });
-    await expect(ticketItem.getByTestId('ticket-submitter')).not.toBeVisible();
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).toHaveText('P1');
   });
 
-  test('Fehlermeldung erscheint bei mehr als 100 Zeichen im reporter_name', async ({ page }) => {
+  test('Ticket mit P4-Priorität erstellen — Badge sichtbar, kein Kritisch-Banner', async ({ page }) => {
     await page.goto(BASE);
-    const longName = 'A'.repeat(101);
-    await page.getByTestId('ticket-title').fill('Zu langer Name Test');
-    await page.getByTestId('ticket-description').fill('Name ist zu lang');
-    await page.getByTestId('ticket-reporter-name').fill(longName);
+    await page.getByTestId('ticket-title').fill('P4 Minimal Ticket E2E');
+    await page.getByTestId('ticket-description').fill('Kosmetisches Problem, keine Eile');
+    await page.getByTestId('ticket-priority-level').selectOption('P4');
     await page.getByTestId('ticket-submit').click();
 
-    // Fehlermeldung soll erscheinen
-    await expect(page.getByTestId('reporter-name-error')).toBeVisible({ timeout: 3000 });
-    // Ticket soll nicht erstellt worden sein
-    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Zu langer Name Test' });
-    await expect(ticketItem).not.toBeVisible();
-  });
-
-  test('Reporter-Name mit exakt 100 Zeichen wird akzeptiert', async ({ page }) => {
-    await page.goto(BASE);
-    const name100 = 'B'.repeat(100);
-    await page.getByTestId('ticket-title').fill('Exakt 100 Zeichen Name');
-    await page.getByTestId('ticket-description').fill('Genau 100 Zeichen');
-    await page.getByTestId('ticket-reporter-name').fill(name100);
-    await page.getByTestId('ticket-submit').click();
-
-    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Exakt 100 Zeichen Name' });
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'P4 Minimal Ticket E2E' });
     await expect(ticketItem).toBeVisible({ timeout: 5000 });
-    // Kein Fehler sichtbar
-    await expect(page.getByTestId('reporter-name-error')).not.toBeVisible();
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).toHaveText('P4');
+    // Kein Kritisch-Banner bei P4
+    await expect(ticketItem.getByTestId('critical-banner')).not.toBeVisible();
   });
 
-  test('Reporter-Name-Feld wird nach Submit zurückgesetzt', async ({ page }) => {
+  test('Ticket ohne P-Level-Auswahl kann trotzdem erstellt werden (Feld optional)', async ({ page }) => {
     await page.goto(BASE);
-    await page.getByTestId('ticket-title').fill('Reset Reporter Name Test');
-    await page.getByTestId('ticket-description').fill('Feld soll nach Submit leer sein');
-    await page.getByTestId('ticket-reporter-name').fill('Test User');
+    await page.getByTestId('ticket-title').fill('Kein P-Level Ticket E2E');
+    await page.getByTestId('ticket-description').fill('Priorität wurde nicht gesetzt');
+    // Kein selectOption für ticket-priority-level
     await page.getByTestId('ticket-submit').click();
 
-    await expect(page.getByTestId('ticket-reporter-name')).toHaveValue('', { timeout: 5000 });
-  });
-
-  test('Reporter-Name wird deutlich sichtbar in der Ticketdetailansicht angezeigt', async ({ page }) => {
-    await page.goto(BASE);
-    await page.getByTestId('ticket-title').fill('Reporter Sichtbarkeit Test');
-    await page.getByTestId('ticket-description').fill('Name soll deutlich sichtbar sein');
-    await page.getByTestId('ticket-reporter-name').fill('Klaus Sichtbar');
-    await page.getByTestId('ticket-submit').click();
-
-    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Reporter Sichtbarkeit Test' });
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Kein P-Level Ticket E2E' });
     await expect(ticketItem).toBeVisible({ timeout: 5000 });
-    // Submitter-Bereich mit "Gemeldet von:" sichtbar
-    await expect(ticketItem.getByTestId('ticket-submitter')).toBeVisible();
-    await expect(ticketItem.getByTestId('ticket-reporter-name-display')).toHaveText('Klaus Sichtbar');
+    // Kein P-Badge vorhanden
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).not.toBeVisible();
+  });
+
+  test('P0-Priorität hat keine required-Attribut (optional)', async ({ page }) => {
+    await page.goto(BASE);
+    const priorityLevelSelect = page.getByTestId('ticket-priority-level');
+    await expect(priorityLevelSelect).not.toHaveAttribute('required');
   });
 
   test('Admin kann Kommentar löschen', async ({ page }) => {

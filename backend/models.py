@@ -5,7 +5,8 @@ VALID_PRIORITIES = {"low", "medium", "high", "critical"}
 VALID_CATEGORIES = {"bug", "feature", "question", "access", "infrastructure", "uncategorized"}
 VALID_AUTHORS = {"Mitarbeiter", "IT-Admin"}
 
-REPORTER_NAME_MAX_LENGTH = 100
+# P0–P4 Prioritätsstufen (AGSDLC-36)
+VALID_TICKET_PRIORITIES = {"P0", "P1", "P2", "P3", "P4"}
 
 class TicketCreate(BaseModel):
     title: str
@@ -13,7 +14,7 @@ class TicketCreate(BaseModel):
     priority: Optional[str] = "medium"
     first_name: Optional[str] = ""
     last_name: Optional[str] = ""
-    reporter_name: Optional[str] = Field(default="", max_length=REPORTER_NAME_MAX_LENGTH)
+    ticket_priority: Optional[str] = None  # P0–P4, optional
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
@@ -24,7 +25,7 @@ class TicketUpdate(BaseModel):
     ai_suggestion: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    reporter_name: Optional[str] = Field(default=None, max_length=REPORTER_NAME_MAX_LENGTH)
+    ticket_priority: Optional[str] = None  # P0–P4, optional
 
 class Ticket(BaseModel):
     id: int
@@ -36,7 +37,7 @@ class Ticket(BaseModel):
     ai_suggestion: Optional[str] = None
     first_name: str = ""
     last_name: str = ""
-    reporter_name: str = ""
+    ticket_priority: Optional[str] = None  # P0–P4
     created_at: str
     updated_at: str
 
