@@ -1,77 +1,64 @@
-# Feature: Submitter-Name & Prioritätssortierung bei Ticket-Erstellung (AGSDLC-20)
+# Feature: My-Music-Company Corporate Design Integration (AGSDLC-37)
 
 ## Was wurde implementiert
 
-- **Getrennte Vor-/Nachname-Felder im Ticket-Formular:** Nutzer können beim Erstellen eines Tickets optional ihren Vor- und Nachnamen angeben; beide Felder sind nicht verpflichtend (`required`-Attribut fehlt bewusst).
-- **Persistierung in der Datenbank:** Die Spalten `first_name` und `last_name` (SQLite `TEXT NOT NULL DEFAULT ''`) wurden per `ALTER TABLE`-Migration ergänzt – bestehende Tickets erhalten automatisch leere Strings als Default, die Rückwärtskompatibilität bleibt gewahrt.
-- **Anzeige in der Ticket-Liste:** Sind Vor- und/oder Nachname gesetzt, erscheint unter dem Ticket-Titel der Hinweis „Gemeldet von: \<Vorname\> \<Nachname\>"; ohne Namensangabe bleibt der Bereich vollständig ausgeblendet.
-- **Neue Sortieroption `priority_lastname`:** Der `GET /tickets`-Endpunkt unterstützt den Query-Parameter `sort=priority_lastname`, der Tickets primär nach Priorität (Critical → High → Medium → Low) und sekundär alphabetisch nach Nachname sortiert.
-- **Whitespace-Bereinigung im Backend:** Führende und nachgestellte Leerzeichen werden in `first_name` und `last_name` serverseitig via `.strip()` entfernt – sowohl beim Anlegen als auch beim Aktualisieren eines Tickets.
-
----
+- **Neue `MmcTicketForm`-Komponente** (`frontend/src/components/MmcTicketForm.tsx`): Vollständiges Ticket-Einreichungsformular im Corporate Design von my-music-company.com (Primärfarbe `#C8102E`, Akzentgold `#E8B800`, Deep Black `#1A1A1A`) – ersetzt die bisherige generische `TicketForm` im User-Portal.
+- **Branded Welcome-Banner** in `App.tsx`: Das bisherige Indigo-Gradient-Banner wurde durch ein MMC-Design-Banner (Corporate Red, Musiknoten-Logo-SVG, Gold-Akzent-Streifen) mit `data-testid="mmc-welcome-banner"` ersetzt; der Markenname `my-music-company` ist explizit sichtbar.
+- **Clientseitige Namensvalidierung**: Das Formular erzwingt, dass Nutzer mindestens Vor- *oder* Nachname angeben; bei leerem Submit erscheint eine sofortige Inline-Fehlermeldung (`data-testid="mmc-name-error"`), die automatisch verschwindet, sobald ein Namensfeld befüllt wird.
+- **MMC Tailwind Design Tokens** (`frontend/tailwind.config.js`): Neue `mmc.*`-Farbpalette (`mmc-primary`, `mmc-secondary`, `mmc-accent`, `mmc-primary-dark`, `mmc-primary-light` u.a.) sowie `fontFamily.mmc` (`Inter / system-ui`) als wiederverwendbare Utility-Klassen registriert.
+- **Branded Erfolgs- und Footer-Bereich**: Nach erfolgreichem Submit erscheint eine MMC-gestaltete Bestätigungsmeldung (`data-testid="mmc-success-message"`) mit Markennamen und Erfolgs-Checkmark; ein Dark-Footer schließt das Formular mit Copyright-Hinweis ab. Alle Felder werden nach dem Submit zurückgesetzt.
 
 ## Neue API-Endpunkte
 
+Keine neuen Endpunkte. Die bestehenden Endpunkte werden unverändert genutzt; die Felder `first_name` und `last_name` waren bereits seit AGSDLC-20 im Backend vorhanden.
+
 | Methode | Pfad | Beschreibung | Parameter |
 |---------|------|--------------|-----------|
-| `GET` | `/tickets` | Alle Tickets auflisten | `sort` *(Query, optional)*: `created_at` (Standard, neueste zuerst) \| `priority_lastname` (nach Priorität desc + Nachname asc) |
-| `POST` | `/tickets` | Neues Ticket erstellen | **Body (JSON):** `title` *(string, required)*, `description` *(string, required)*, `priority` *(string, optional, default `medium`)*, `first_name` *(string, optional, default `""`)*, `last_name` *(string, optional, default `""`)* |
-| `PUT` | `/tickets/{id}` | Ticket aktualisieren | **Body (JSON, alle optional):** `title`, `description`, `status`, `category`, `priority`, `ai_suggestion`, `first_name`, `last_name` |
+| `POST` | `/tickets` | Ticket erstellen (inkl. Namensfelder) | `title`* `string`, `description`* `string`, `priority` `string` (low\|medium\|high\|critical, default: `medium`), `first_name` `string` (optional, Backend trimmt Whitespace), `last_name` `string` (optional, Backend trimmt Whitespace) |
+| `GET` | `/tickets` | Alle Tickets abrufen | – |
+| `GET` | `/tickets/{id}` | Einzelticket abrufen | `id` `int` |
 
-> Alle Endpunkte geben das vollständige `Ticket`-Objekt zurück, das ab dieser Version die Felder `first_name: string` und `last_name: string` enthält.
-
----
+> \* Pflichtfeld · Felder ohne \* werden serverseitig als leerer String defaulted.
 
 ## Tests
 
-### Backend – `backend/tests/test_api.py` (11 neue Tests)
+### Backend – `backend/tests/test_api.py` (+9 neue Unit-Tests)
 
 | Testfunktion | Was wird geprüft |
 |---|---|
-| `test_create_ticket_with_first_and_last_name` | Vor- und Nachname werden beim Erstellen korrekt gespeichert und zurückgegeben |
-| `test_create_ticket_without_name_uses_empty_defaults` | Tickets ohne Namensangabe erhalten leere Strings als Default (Abwärtskompatibilität) |
-| `test_create_ticket_with_priority_and_name` | Kombination aus Priorität, Vor- und Nachname wird vollständig persistiert |
-| `test_first_last_name_visible_in_detail` | Namen erscheinen im Einzelticket-Endpunkt (`GET /tickets/{id}`) |
-| `test_first_last_name_visible_in_list` | Namen erscheinen in der Gesamtliste (`GET /tickets`) |
-| `test_update_ticket_first_last_name` | Vor- und Nachname können via `PUT /tickets/{id}` nachträglich geändert werden |
-| `test_sort_tickets_by_priority_and_lastname` | `sort=priority_lastname` liefert korrekte Reihenfolge: Critical-Adler vor Critical-Becker, dann High, dann Low |
-| `test_whitespace_stripped_from_name` | Leerzeichen am Rand werden serverseitig entfernt |
-| `test_create_ticket_only_first_name` | Nur Vorname ohne Nachname ist zulässig; `last_name` bleibt `""` |
-| `test_create_ticket_only_last_name` | Nur Nachname ohne Vorname ist zulässig; `first_name` bleibt `""` |
-| `test_all_four_priorities_with_names` | Alle vier Prioritätsstufen (`low`, `medium`, `high`, `critical`) funktionieren in Kombination mit Namen |
+| `test_mmc_create_ticket_with_full_name` | Vor- und Nachname werden korrekt persistiert, HTTP 201 |
+| `test_mmc_name_appears_in_ticket_overview` | Name des Melders erscheint in der `GET /tickets`-Liste |
+| `test_mmc_name_appears_in_ticket_detail` | Name erscheint in der `GET /tickets/{id}`-Detailansicht |
+| `test_mmc_ticket_without_name_still_accepted` | Anonyme Einreichung ohne Namensfelder liefert HTTP 201; Backend setzt `""` als Default |
+| `test_mmc_name_whitespace_trimmed_on_submit` | Führende/trailing Leerzeichen werden serverseitig entfernt |
+| `test_mmc_combined_name_with_all_priorities` | Namensübergabe funktioniert für alle vier Prioritätsstufen (low/medium/high/critical) |
+| `test_mmc_ticket_status_defaults_to_open` | Neu erstellte MMC-Tickets haben immer `status: "open"` |
+| `test_mmc_first_name_only_accepted` | Nur Vorname (ohne Nachname) wird akzeptiert; `last_name` ist `""` |
+| `test_mmc_last_name_only_accepted` | Nur Nachname (ohne Vorname) wird akzeptiert; `first_name` ist `""` |
 
-### Frontend (E2E) – `frontend/tests/helpdesk.spec.ts` (7 neue Playwright-Tests)
+### E2E – `frontend/tests/helpdesk.spec.ts` (+10 neue Playwright-Tests)
 
 | Testname | Was wird geprüft |
 |---|---|
-| Vorname- und Nachname-Felder sind im Formular sichtbar | Beide Eingabefelder rendern korrekt auf der Seite |
-| Ticket mit Vor- und Nachname erstellen und in der Liste anzeigen | End-to-End-Flow: Eingabe → Submit → Anzeige in der Liste mit korrekten `data-testid`-Werten |
-| Ticket ohne Namen erstellen – kein Submitter-Bereich sichtbar | Abwesenheit des „Gemeldet von"-Blocks, wenn keine Namen eingegeben wurden |
-| Ticket mit Priorität Kritisch und Name erstellen | Kombination aus Critical-Banner, Prioritäts-Label und Namensanzeige |
-| Formular-Felder werden nach dem Absenden zurückgesetzt | Alle Felder (Titel, Vorname, Nachname) sind nach erfolgreichem Submit leer |
-| Vorname-Feld hat kein `required`-Attribut | Optionalität des Vorname-Feldes wird explizit auf DOM-Ebene geprüft |
-| Nachname-Feld hat kein `required`-Attribut | Optionalität des Nachname-Feldes wird explizit auf DOM-Ebene geprüft |
-
----
+| `MMC-Formular ist sichtbar und hat Corporate-Design-Header` | `mmc-ticket-form`, `mmc-form-header` und `mmc-logo` sind sichtbar |
+| `MMC Welcome-Banner wird im User-Portal angezeigt` | `mmc-welcome-banner` sichtbar und enthält Text `my-music-company` |
+| `MMC-Formular zeigt Namensfelder an` | `ticket-first-name` und `ticket-last-name` sind im DOM sichtbar |
+| `MMC-Formular zeigt Validierungsfehler bei leerem Namen und Absenden` | Bei Submit ohne Namen erscheint `mmc-name-error` mit dem Wort „Namen" |
+| `MMC-Formular: Validierungsfehler verschwindet bei Namenseingabe` | Fehlermeldung blendet sich aus, sobald `ticket-first-name` befüllt wird |
+| `MMC-Bestätigungsmeldung erscheint nach erfolgreicher Übermittlung` | `mmc-success-message` enthält „erfolgreich übermittelt" und „my-music-company" |
+| `MMC-Bestätigungsmeldung: Ticket erscheint in der Übersicht nach Absenden` | Ticket-Karte mit Titel und separat angezeigten Namen (`ticket-first-name-display` / `ticket-last-name-display`) taucht in der Liste auf |
+| `MMC-Formular: Nur Vorname reicht für erfolgreiche Übermittlung` | Submit mit nur `first_name` führt zu sichtbarer `mmc-success-message` |
+| `MMC-Formular: Nur Nachname reicht für erfolgreiche Übermittlung` | Submit mit nur `last_name` führt zu sichtbarer `mmc-success-message` |
+| `MMC-Formular: Felder werden nach Absenden zurückgesetzt` | Nach erfolgreichem Submit sind `ticket-title`, `ticket-first-name` und `ticket-last-name` leer |
 
 ## Deployment-Hinweise
 
-### Datenbank-Migration
-Die Migration ist **automatisch** und **nicht-destruktiv**: `database.py` führt beim Start via `ALTER TABLE tickets ADD COLUMN` die zwei neuen Spalten ein. Schlägt das `ALTER TABLE` fehl (Spalte existiert bereits), wird der Fehler stillschweigend ignoriert. Kein manueller Migrations-Schritt notwendig.
+**Datenbank-Migrationen:** Keine. Die Spalten `first_name` und `last_name` in der Tickets-Tabelle wurden bereits mit AGSDLC-20 eingeführt.
 
-```sql
--- Wird automatisch durch init_db() ausgeführt:
-ALTER TABLE tickets ADD COLUMN first_name TEXT NOT NULL DEFAULT '';
-ALTER TABLE tickets ADD COLUMN last_name  TEXT NOT NULL DEFAULT '';
-```
+**Neue Umgebungsvariablen:** Keine.
 
-> ⚠️ **Bestehende Produktions-DBs:** Tickets, die vor diesem Release angelegt wurden, erhalten `first_name = ""` und `last_name = ""` als Standardwert – keine Datenverluste, keine Nullwerte.
+**Neue Abhängigkeiten:** Keine neuen npm- oder Python-Pakete. Die Komponente nutzt ausschließlich bestehende Tailwind CSS-Utilities und React-Hooks.
 
-### Neue Umgebungsvariablen
-Keine neuen Umgebungsvariablen erforderlich.
+**Tailwind-Konfiguration:** Die neuen `mmc.*`-Design-Tokens in `frontend/tailwind.config.js` sind rein additiv und breaking-change-frei. Ein Rebuild des Frontends (`npm run build`) ist erforderlich, damit die neuen Utility-Klassen im Production-Bundle enthalten sind.
 
-### Neue Abhängigkeiten
-Keine neuen Python- oder Node-Pakete. Die TypeScript-Compiler-Version wurde im Build-Artefakt (`tsconfig.app.tsbuildinfo`) von **5.9.3 → 6.0.3** aktualisiert – sicherstellen, dass die CI-Umgebung TypeScript ≥ 6.0 nutzt.
-
-### Frontend
-Das TypeScript-Interface `Ticket` in `frontend/src/api.ts` wurde um `first_name: string` und `last_name: string` ergänzt. Alle Komponenten, die das `Ticket`-Objekt destructuren, sind abwärtskompatibel (leere Strings als Fallback).
+**Hinweis zum Formular-Wechsel:** `TicketForm` ist weiterhin im Codebase vorhanden und kann für andere Mandanten/Portale weiterverwendet werden. Im User-Portal (`view === 'user'`) ist sie durch `MmcTicketForm` ersetzt worden.
