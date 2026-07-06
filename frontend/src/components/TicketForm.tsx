@@ -15,16 +15,52 @@ const PRIORITY_OPTIONS = [
   { value: 'critical', label: 'Kritisch', style: 'text-red-700' },
 ];
 
+/** P0-P4 Prioritätsstufen gemäß AGSDLC-38 */
+const P_LEVEL_OPTIONS = [
+  {
+    value: '',
+    label: '— Keine P-Stufe —',
+    tooltip: 'Optional: Klassifizierung nach interner P-Skala',
+  },
+  {
+    value: 'P0',
+    label: 'P0 – Notfall',
+    tooltip: 'P0: Kritischer Systemausfall – sofortige Eskalation, Reaktionszeit < 15 Min.',
+  },
+  {
+    value: 'P1',
+    label: 'P1 – Dringend',
+    tooltip: 'P1: Schwerwiegende Störung – Reaktionszeit < 1 Stunde.',
+  },
+  {
+    value: 'P2',
+    label: 'P2 – Hoch',
+    tooltip: 'P2: Erhebliche Beeinträchtigung – Reaktionszeit < 4 Stunden.',
+  },
+  {
+    value: 'P3',
+    label: 'P3 – Mittel',
+    tooltip: 'P3: Teilweise Beeinträchtigung – Reaktionszeit < 1 Werktag.',
+  },
+  {
+    value: 'P4',
+    label: 'P4 – Niedrig',
+    tooltip: 'P4: Geringfügige Störung oder Anfrage – Reaktionszeit < 5 Werktage.',
+  },
+];
+
 interface Props { onCreated: () => void; }
 
 export function TicketForm({ onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [pLevel, setPLevel] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [hoveredPLevel, setHoveredPLevel] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,12 +71,14 @@ export function TicketForm({ onCreated }: Props) {
         title,
         description,
         priority,
+        p_level: pLevel || undefined,
         first_name: firstName,
         last_name: lastName,
       });
       setTitle('');
       setDescription('');
       setPriority('medium');
+      setPLevel('');
       setFirstName('');
       setLastName('');
       setDone(true);
@@ -50,6 +88,8 @@ export function TicketForm({ onCreated }: Props) {
       setLoading(false);
     }
   };
+
+  const activePLevelOption = P_LEVEL_OPTIONS.find(o => o.value === (hoveredPLevel ?? pLevel));
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -146,8 +186,8 @@ export function TicketForm({ onCreated }: Props) {
           </div>
         </div>
 
-        {/* Prioritäts-Auswahl */}
-        <div className="mb-4">
+        {/* Prioritäts-Auswahl (low/medium/high/critical) */}
+        <div className="mb-3">
           <label
             htmlFor="ticket-priority"
             className="block text-xs font-semibold text-gray-500 mb-1.5"
@@ -164,6 +204,92 @@ export function TicketForm({ onCreated }: Props) {
               bg-white text-gray-700"
           >
             {PRIORITY_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* P0-P4 Klassifizierung (AGSDLC-38) */}
+        <div className="mb-4">
+          <label
+            htmlFor="ticket-p-level"
+            className="block text-xs font-semibold text-gray-500 mb-1.5"
+          >
+            P-Level Klassifizierung
+            <span className="ml-1.5 font-normal text-gray-400">(optional)</span>
+          </label>
+
+          {/* Tooltip-Anzeige */}
+          {activePLevelOption && activePLevelOption.value && (
+            <div
+              data-testid="p-level-tooltip"
+              className="mb-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100
+                text-xs text-indigo-800 leading-snug"
+            >
+              {activePLevelOption.tooltip}
+            </div>
+          )}
+
+          {/* Radio-Buttons für P0-P4 */}
+          <div className="flex flex-wrap gap-2" data-testid="p-level-options">
+            {P_LEVEL_OPTIONS.filter(o => o.value !== '').map(opt => {
+              const isSelected = pLevel === opt.value;
+              const isP0 = opt.value === 'P0';
+              return (
+                <label
+                  key={opt.value}
+                  title={opt.tooltip}
+                  onMouseEnter={() => setHoveredPLevel(opt.value)}
+                  onMouseLeave={() => setHoveredPLevel(null)}
+                  className={`cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg
+                    border text-xs font-semibold transition-all select-none
+                    ${isSelected
+                      ? isP0
+                        ? 'bg-red-600 text-white border-red-700 ring-2 ring-red-300'
+                        : 'bg-indigo-600 text-white border-indigo-700'
+                      : isP0
+                        ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200'
+                    }`}
+                >
+                  <input
+                    type="radio"
+                    name="p_level"
+                    value={opt.value}
+                    checked={isSelected}
+                    onChange={() => setPLevel(opt.value)}
+                    className="sr-only"
+                    data-testid={`p-level-option-${opt.value}`}
+                  />
+                  {opt.value}
+                </label>
+              );
+            })}
+            {/* Auswahl aufheben */}
+            {pLevel && (
+              <button
+                type="button"
+                onClick={() => setPLevel('')}
+                data-testid="p-level-clear"
+                className="text-xs text-gray-400 hover:text-gray-600 underline px-1"
+              >
+                Zurücksetzen
+              </button>
+            )}
+          </div>
+
+          {/* Hidden select for accessibility & testability */}
+          <select
+            id="ticket-p-level"
+            value={pLevel}
+            onChange={(e) => setPLevel(e.target.value)}
+            data-testid="ticket-p-level"
+            className="sr-only"
+            aria-label="P-Level Klassifizierung"
+          >
+            {P_LEVEL_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>

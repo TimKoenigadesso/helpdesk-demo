@@ -510,3 +510,122 @@ def test_all_four_priorities_with_names():
         assert data["priority"] == prio
         assert data["first_name"] == fname
         assert data["last_name"] == lname
+
+# ── P-Level P0-P4 Feature-Tests (AGSDLC-38) ──────────────────────────────────
+
+def test_create_ticket_without_p_level_returns_null():
+    """Ohne p_level-Angabe ist das Feld null (optionales Feld)."""
+    r = client.post("/tickets", json={"title": "Kein P-Level", "description": "Desc"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["p_level"] is None
+
+def test_create_ticket_with_p_level_p0():
+    """Ticket mit P0 erstellen — kritischste Stufe."""
+    r = client.post("/tickets", json={"title": "P0 Ticket", "description": "Notfall", "p_level": "P0"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["p_level"] == "P0"
+
+def test_create_ticket_with_p_level_p1():
+    """Ticket mit P1 erstellen."""
+    r = client.post("/tickets", json={"title": "P1 Ticket", "description": "Dringend", "p_level": "P1"})
+    assert r.status_code == 201
+    assert r.json()["p_level"] == "P1"
+
+def test_create_ticket_with_p_level_p2():
+    """Ticket mit P2 erstellen."""
+    r = client.post("/tickets", json={"title": "P2 Ticket", "description": "Hoch", "p_level": "P2"})
+    assert r.status_code == 201
+    assert r.json()["p_level"] == "P2"
+
+def test_create_ticket_with_p_level_p3():
+    """Ticket mit P3 erstellen."""
+    r = client.post("/tickets", json={"title": "P3 Ticket", "description": "Mittel", "p_level": "P3"})
+    assert r.status_code == 201
+    assert r.json()["p_level"] == "P3"
+
+def test_create_ticket_with_p_level_p4():
+    """Ticket mit P4 erstellen — niedrigste Stufe."""
+    r = client.post("/tickets", json={"title": "P4 Ticket", "description": "Niedrig", "p_level": "P4"})
+    assert r.status_code == 201
+    assert r.json()["p_level"] == "P4"
+
+def test_all_p_levels_are_valid():
+    """Alle fünf P-Level-Stufen sind gültig und werden korrekt gespeichert."""
+    for p in ["P0", "P1", "P2", "P3", "P4"]:
+        r = client.post("/tickets", json={"title": f"Level {p}", "description": "Desc", "p_level": p})
+        assert r.status_code == 201
+        assert r.json()["p_level"] == p
+
+def test_create_ticket_invalid_p_level_stored_as_null():
+    """Ungültiges p_level (z.B. 'P5') wird verworfen und als null gespeichert."""
+    r = client.post("/tickets", json={"title": "Bad P-Level", "description": "Desc", "p_level": "P5"})
+    assert r.status_code == 201
+    assert r.json()["p_level"] is None
+
+def test_p_level_visible_in_detail():
+    """Gespeichertes p_level erscheint in der Ticket-Detailansicht."""
+    created = client.post("/tickets", json={
+        "title": "P-Level Detail Test",
+        "description": "Desc",
+        "p_level": "P0",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["p_level"] == "P0"
+
+def test_p_level_visible_in_list():
+    """Gespeichertes p_level erscheint in der Ticket-Übersichtsliste."""
+    client.post("/tickets", json={"title": "P-Level List Test", "description": "Desc", "p_level": "P2"})
+    tickets = client.get("/tickets").json()
+    found = next((t for t in tickets if t["title"] == "P-Level List Test"), None)
+    assert found is not None
+    assert found["p_level"] == "P2"
+
+def test_update_ticket_p_level():
+    """p_level eines Tickets nachträglich setzen."""
+    created = client.post("/tickets", json={"title": "Update P-Level", "description": "Desc"}).json()
+    assert created["p_level"] is None
+    r = client.put(f"/tickets/{created['id']}", json={"p_level": "P1"})
+    assert r.status_code == 200
+    assert r.json()["p_level"] == "P1"
+
+def test_update_ticket_invalid_p_level_returns_422():
+    """Ungültiges p_level beim Update → 422."""
+    created = client.post("/tickets", json={"title": "Invalid P Update", "description": "Desc"}).json()
+    r = client.put(f"/tickets/{created['id']}", json={"p_level": "P9"})
+    assert r.status_code == 422
+
+def test_create_ticket_p_level_and_priority_combined():
+    """p_level und priority können unabhängig voneinander gesetzt werden."""
+    r = client.post("/tickets", json={
+        "title": "P0 + critical",
+        "description": "Maximaler Notfall",
+        "priority": "critical",
+        "p_level": "P0",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["priority"] == "critical"
+    assert data["p_level"] == "P0"
+
+def test_create_ticket_p_level_with_name():
+    """p_level zusammen mit Vor-/Nachname speichern."""
+    r = client.post("/tickets", json={
+        "title": "P0 Notfall mit Name",
+        "description": "Server komplett ausgefallen",
+        "p_level": "P0",
+        "first_name": "Julia",
+        "last_name": "Bauer",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["p_level"] == "P0"
+    assert data["first_name"] == "Julia"
+    assert data["last_name"] == "Bauer"
+
+def test_p_level_none_does_not_trigger_validation_error():
+    """Ticket ohne p_level (None) ist valide — Feld ist optional."""
+    r = client.post("/tickets", json={"title": "Ohne P-Level", "description": "Desc", "p_level": None})
+    assert r.status_code == 201
+    assert r.json()["p_level"] is None

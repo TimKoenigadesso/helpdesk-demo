@@ -16,6 +16,7 @@ def init_db():
                 status TEXT NOT NULL DEFAULT 'open',
                 category TEXT NOT NULL DEFAULT 'uncategorized',
                 priority TEXT NOT NULL DEFAULT 'medium',
+                p_level TEXT,
                 ai_suggestion TEXT,
                 first_name TEXT NOT NULL DEFAULT '',
                 last_name TEXT NOT NULL DEFAULT '',
@@ -37,6 +38,7 @@ def init_db():
             ("ai_suggestion", "TEXT"),
             ("first_name", "TEXT NOT NULL DEFAULT ''"),
             ("last_name", "TEXT NOT NULL DEFAULT ''"),
+            ("p_level", "TEXT"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} {definition}")

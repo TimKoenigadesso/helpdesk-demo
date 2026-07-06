@@ -9,6 +9,7 @@ export interface Ticket {
   status: string;
   category: string;
   priority: string;
+  p_level: string | null;
   ai_suggestion: string | null;
   first_name: string;
   last_name: string;
@@ -34,6 +35,7 @@ export const api = {
     title: string;
     description: string;
     priority?: string;
+    p_level?: string;
     first_name?: string;
     last_name?: string;
   }): Promise<Ticket> {

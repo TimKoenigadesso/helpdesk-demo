@@ -8,7 +8,7 @@ from database import init_db, get_conn
 from models import (
     TicketCreate, TicketUpdate, Ticket, TicketAnalysis,
     CommentCreate, Comment,
-    VALID_PRIORITIES, VALID_CATEGORIES, VALID_AUTHORS,
+    VALID_PRIORITIES, VALID_CATEGORIES, VALID_AUTHORS, VALID_P_LEVELS,
 )
 from typing import List
 
@@ -54,12 +54,13 @@ def list_tickets(sort: str = "created_at"):
 @app.post("/tickets", response_model=Ticket, status_code=201)
 def create_ticket(ticket: TicketCreate):
     priority = ticket.priority if ticket.priority in VALID_PRIORITIES else "medium"
+    p_level = ticket.p_level if ticket.p_level in VALID_P_LEVELS else None
     first_name = (ticket.first_name or "").strip()
     last_name = (ticket.last_name or "").strip()
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO tickets (title, description, priority, first_name, last_name) VALUES (?, ?, ?, ?, ?) RETURNING *",
-            (ticket.title, ticket.description, priority, first_name, last_name),
+            "INSERT INTO tickets (title, description, priority, p_level, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?) RETURNING *",
+            (ticket.title, ticket.description, priority, p_level, first_name, last_name),
         )
         row = cur.fetchone()
     return dict(row)
@@ -89,6 +90,10 @@ def update_ticket(ticket_id: int, update: TicketUpdate):
         if update.priority not in VALID_PRIORITIES:
             raise HTTPException(status_code=422, detail=f"Invalid priority. Must be one of: {VALID_PRIORITIES}")
         fields.append("priority = ?"); values.append(update.priority)
+    if update.p_level is not None:
+        if update.p_level not in VALID_P_LEVELS:
+            raise HTTPException(status_code=422, detail=f"Invalid p_level. Must be one of: {VALID_P_LEVELS}")
+        fields.append("p_level = ?"); values.append(update.p_level)
     if update.ai_suggestion is not None:
         fields.append("ai_suggestion = ?"); values.append(update.ai_suggestion)
     if update.first_name is not None:

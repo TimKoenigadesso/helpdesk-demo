@@ -4,11 +4,14 @@ from typing import Optional
 VALID_PRIORITIES = {"low", "medium", "high", "critical"}
 VALID_CATEGORIES = {"bug", "feature", "question", "access", "infrastructure", "uncategorized"}
 VALID_AUTHORS = {"Mitarbeiter", "IT-Admin"}
+# P0-P4 Prioritaetsstufen gemaess AGSDLC-38
+VALID_P_LEVELS = {"P0", "P1", "P2", "P3", "P4"}
 
 class TicketCreate(BaseModel):
     title: str
     description: str
     priority: Optional[str] = "medium"
+    p_level: Optional[str] = None
     first_name: Optional[str] = ""
     last_name: Optional[str] = ""
 
@@ -18,6 +21,7 @@ class TicketUpdate(BaseModel):
     status: Optional[str] = None
     category: Optional[str] = None
     priority: Optional[str] = None
+    p_level: Optional[str] = None
     ai_suggestion: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -29,6 +33,7 @@ class Ticket(BaseModel):
     status: str
     category: str = "uncategorized"
     priority: str = "medium"
+    p_level: Optional[str] = None
     ai_suggestion: Optional[str] = None
     first_name: str = ""
     last_name: str = ""

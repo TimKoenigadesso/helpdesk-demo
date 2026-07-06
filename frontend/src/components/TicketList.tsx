@@ -1,5 +1,6 @@
 import { Ticket, api } from '../api';
 import { PriorityBadge } from './PriorityBadge';
+import { PLevelBadge } from './PLevelBadge';
 import { CategoryTag } from './CategoryTag';
 import { AiPanel } from './AiPanel';
 import { CommentSection } from './CommentSection';
@@ -37,18 +38,19 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
     <ul className="space-y-3">
       {tickets.map((t) => {
         const isCritical = t.priority === 'critical' && t.status === 'open';
+        const isP0 = t.p_level === 'P0' && t.status === 'open';
         return (
           <li key={t.id} data-testid="ticket-item"
             className={`bg-white rounded-xl border shadow-sm p-4 transition-colors ${
               t.status === 'open'
-                ? isCritical
+                ? (isCritical || isP0)
                   ? 'border-red-400 ring-1 ring-red-300 bg-red-50'
                   : 'border-gray-200'
                 : 'border-gray-100 opacity-75'
             }`}>
 
-            {/* Kritisch-Banner */}
-            {isCritical && (
+            {/* Kritisch-Banner (priority=critical oder p_level=P0) */}
+            {(isCritical || isP0) && (
               <div
                 data-testid="critical-banner"
                 className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-red-700"
@@ -58,7 +60,7 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                     d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                     clipRule="evenodd" />
                 </svg>
-                Sofortige Bearbeitung erforderlich
+                {isP0 ? 'P0 – Sofortiger Handlungsbedarf (Eskalation)' : 'Sofortige Bearbeitung erforderlich'}
               </div>
             )}
 
@@ -80,6 +82,7 @@ export function TicketList({ tickets, onUpdated, adminMode = false }: Props) {
                     {t.status === 'open' ? 'Offen' : 'Geschlossen'}
                   </span>
                   <PriorityBadge priority={t.priority} />
+                  {t.p_level && <PLevelBadge pLevel={t.p_level} />}
                   <CategoryTag category={t.category} />
                   {adminMode && (
                     <span className="text-[10px] text-gray-400">#{t.id}</span>
