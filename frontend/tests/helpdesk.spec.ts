@@ -268,6 +268,100 @@ test.describe('Helpdesk App', () => {
     await expect(lastNameInput).not.toHaveAttribute('required');
   });
 
+  // ── P0–P4 Ticketpriorität Feature-Tests (AGSDLC-36) ──────────────────────────
+
+  test('P0–P4 Dropdown ist im Formular sichtbar mit Standardwert leer', async ({ page }) => {
+    await page.goto(BASE);
+    const priorityLevelSelect = page.getByTestId('ticket-priority-level');
+    await expect(priorityLevelSelect).toBeVisible();
+    // Standardmäßig ist kein P-Level vorgewählt (leerer Wert)
+    await expect(priorityLevelSelect).toHaveValue('');
+  });
+
+  test('Alle fünf P-Stufen sind im Dropdown wählbar', async ({ page }) => {
+    await page.goto(BASE);
+    const sel = page.getByTestId('ticket-priority-level');
+    await expect(sel.locator('option[value="P0"]')).toContainText('P0');
+    await expect(sel.locator('option[value="P1"]')).toContainText('P1');
+    await expect(sel.locator('option[value="P2"]')).toContainText('P2');
+    await expect(sel.locator('option[value="P3"]')).toContainText('P3');
+    await expect(sel.locator('option[value="P4"]')).toContainText('P4');
+  });
+
+  test('Prioritäts-Legende ist im Formular sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('priority-legend')).toBeVisible();
+  });
+
+  test('Tooltip-Button ist sichtbar und zeigt Tooltip bei Hover', async ({ page }) => {
+    await page.goto(BASE);
+    const tooltipTrigger = page.getByTestId('priority-tooltip-trigger');
+    await expect(tooltipTrigger).toBeVisible();
+    await tooltipTrigger.hover();
+    await expect(page.getByTestId('priority-tooltip')).toBeVisible();
+  });
+
+  test('Ticket mit P0-Priorität erstellen — Badge und Banner sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('P0 Kritisches Ticket E2E');
+    await page.getByTestId('ticket-description').fill('Produktionsausfall — sofortiger Handlungsbedarf');
+    await page.getByTestId('ticket-priority-level').selectOption('P0');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'P0 Kritisches Ticket E2E' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // P0-Badge sichtbar
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).toBeVisible();
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).toHaveText('P0');
+    // Kritisch-Banner sichtbar (visuelles Highlight für P0)
+    await expect(ticketItem.getByTestId('critical-banner')).toBeVisible();
+  });
+
+  test('Ticket mit P1-Priorität erstellen — Badge sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('P1 Hoch-Prio Ticket E2E');
+    await page.getByTestId('ticket-description').fill('Schwere Beeinträchtigung ohne Workaround');
+    await page.getByTestId('ticket-priority-level').selectOption('P1');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'P1 Hoch-Prio Ticket E2E' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).toHaveText('P1');
+  });
+
+  test('Ticket mit P4-Priorität erstellen — Badge sichtbar, kein Kritisch-Banner', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('P4 Minimal Ticket E2E');
+    await page.getByTestId('ticket-description').fill('Kosmetisches Problem, keine Eile');
+    await page.getByTestId('ticket-priority-level').selectOption('P4');
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'P4 Minimal Ticket E2E' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).toHaveText('P4');
+    // Kein Kritisch-Banner bei P4
+    await expect(ticketItem.getByTestId('critical-banner')).not.toBeVisible();
+  });
+
+  test('Ticket ohne P-Level-Auswahl kann trotzdem erstellt werden (Feld optional)', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Kein P-Level Ticket E2E');
+    await page.getByTestId('ticket-description').fill('Priorität wurde nicht gesetzt');
+    // Kein selectOption für ticket-priority-level
+    await page.getByTestId('ticket-submit').click();
+
+    const ticketItem = page.getByTestId('ticket-item').filter({ hasText: 'Kein P-Level Ticket E2E' });
+    await expect(ticketItem).toBeVisible({ timeout: 5000 });
+    // Kein P-Badge vorhanden
+    await expect(ticketItem.getByTestId('ticket-priority-badge')).not.toBeVisible();
+  });
+
+  test('P0-Priorität hat keine required-Attribut (optional)', async ({ page }) => {
+    await page.goto(BASE);
+    const priorityLevelSelect = page.getByTestId('ticket-priority-level');
+    await expect(priorityLevelSelect).not.toHaveAttribute('required');
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 

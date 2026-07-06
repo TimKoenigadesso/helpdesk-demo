@@ -510,3 +510,128 @@ def test_all_four_priorities_with_names():
         assert data["priority"] == prio
         assert data["first_name"] == fname
         assert data["last_name"] == lname
+
+# ── P0–P4 Ticketpriorität Feature-Tests (AGSDLC-36) ──────────────────────────
+
+def test_create_ticket_without_ticket_priority_defaults_to_none():
+    """Ohne ticket_priority bleibt das Feld None (optional)."""
+    r = client.post("/tickets", json={"title": "Kein P-Level", "description": "Desc"})
+    assert r.status_code == 201
+    data = r.json()
+    assert data["ticket_priority"] is None
+
+def test_create_ticket_with_ticket_priority_p0():
+    """Ticket mit ticket_priority=P0 erstellen."""
+    r = client.post("/tickets", json={
+        "title": "P0 Kritisch", "description": "Systemausfall",
+        "ticket_priority": "P0",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["ticket_priority"] == "P0"
+
+def test_create_ticket_with_ticket_priority_p1():
+    """Ticket mit ticket_priority=P1 erstellen."""
+    r = client.post("/tickets", json={
+        "title": "P1 Hoch", "description": "Schwere Beeinträchtigung",
+        "ticket_priority": "P1",
+    })
+    assert r.status_code == 201
+    assert r.json()["ticket_priority"] == "P1"
+
+def test_create_ticket_with_ticket_priority_p2():
+    """Ticket mit ticket_priority=P2 erstellen."""
+    r = client.post("/tickets", json={
+        "title": "P2 Mittel", "description": "Eingeschränkte Funktion",
+        "ticket_priority": "P2",
+    })
+    assert r.status_code == 201
+    assert r.json()["ticket_priority"] == "P2"
+
+def test_create_ticket_with_ticket_priority_p3():
+    """Ticket mit ticket_priority=P3 erstellen."""
+    r = client.post("/tickets", json={
+        "title": "P3 Niedrig", "description": "Geringe Auswirkung",
+        "ticket_priority": "P3",
+    })
+    assert r.status_code == 201
+    assert r.json()["ticket_priority"] == "P3"
+
+def test_create_ticket_with_ticket_priority_p4():
+    """Ticket mit ticket_priority=P4 erstellen."""
+    r = client.post("/tickets", json={
+        "title": "P4 Minimal", "description": "Kosmetisches Problem",
+        "ticket_priority": "P4",
+    })
+    assert r.status_code == 201
+    assert r.json()["ticket_priority"] == "P4"
+
+def test_create_ticket_all_five_ticket_priorities():
+    """Alle fünf P-Stufen (P0–P4) sind gültig und werden korrekt gespeichert."""
+    for level in ["P0", "P1", "P2", "P3", "P4"]:
+        r = client.post("/tickets", json={
+            "title": f"Ticket {level}",
+            "description": "Desc",
+            "ticket_priority": level,
+        })
+        assert r.status_code == 201
+        assert r.json()["ticket_priority"] == level
+
+def test_create_ticket_invalid_ticket_priority_falls_back_to_none():
+    """Ungültige ticket_priority wird auf None zurückgesetzt (kein Fehler)."""
+    r = client.post("/tickets", json={
+        "title": "Ungültig P-Level", "description": "Desc",
+        "ticket_priority": "P99",
+    })
+    assert r.status_code == 201
+    assert r.json()["ticket_priority"] is None
+
+def test_ticket_priority_visible_in_detail():
+    """ticket_priority erscheint in der Detailansicht."""
+    created = client.post("/tickets", json={
+        "title": "Detail P-Level", "description": "Desc",
+        "ticket_priority": "P0",
+    }).json()
+    detail = client.get(f"/tickets/{created['id']}").json()
+    assert detail["ticket_priority"] == "P0"
+
+def test_ticket_priority_visible_in_list():
+    """ticket_priority erscheint in der Ticket-Liste."""
+    client.post("/tickets", json={
+        "title": "List P-Level", "description": "Desc",
+        "ticket_priority": "P2",
+    })
+    tickets = client.get("/tickets").json()
+    found = next((t for t in tickets if t["title"] == "List P-Level"), None)
+    assert found is not None
+    assert found["ticket_priority"] == "P2"
+
+def test_update_ticket_priority_level():
+    """ticket_priority kann nachträglich aktualisiert werden."""
+    created = client.post("/tickets", json={
+        "title": "Update P-Level", "description": "Desc",
+        "ticket_priority": "P3",
+    }).json()
+    assert created["ticket_priority"] == "P3"
+    updated = client.put(f"/tickets/{created['id']}", json={"ticket_priority": "P0"}).json()
+    assert updated["ticket_priority"] == "P0"
+
+def test_update_ticket_invalid_ticket_priority_returns_422():
+    """Ungültige ticket_priority beim Update → 422."""
+    created = client.post("/tickets", json={
+        "title": "Invalid Update P-Level", "description": "Desc",
+    }).json()
+    r = client.put(f"/tickets/{created['id']}", json={"ticket_priority": "SUPER"})
+    assert r.status_code == 422
+
+def test_ticket_priority_independent_of_priority_field():
+    """ticket_priority (P0–P4) ist unabhängig vom bestehenden priority-Feld (low–critical)."""
+    r = client.post("/tickets", json={
+        "title": "Beide Prioritäten", "description": "Desc",
+        "priority": "low",
+        "ticket_priority": "P0",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["priority"] == "low"
+    assert data["ticket_priority"] == "P0"

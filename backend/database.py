@@ -37,6 +37,7 @@ def init_db():
             ("ai_suggestion", "TEXT"),
             ("first_name", "TEXT NOT NULL DEFAULT ''"),
             ("last_name", "TEXT NOT NULL DEFAULT ''"),
+            ("ticket_priority", "TEXT"),  # P0–P4 (AGSDLC-36)
         ]:
             try:
                 conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} {definition}")
