@@ -1,3 +1,40 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Vollbreite-Layout ───────────────────────────────────────────────────── */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+/* ── Emoji-Regen Keyframe-Animation ─────────────────────────────────────── */
+@keyframes emoji-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* ── Rossmann Gradient-Akzentlinie ──────────────────────────────────────── */
+.rossmann-gradient-bar {
+  height: 4px;
+  background: linear-gradient(90deg, #e30613 0%, #f07f00 40%, #9b2fae 70%, #00a8a8 100%);
+}

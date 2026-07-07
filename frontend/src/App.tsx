@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, Ticket } from './api';
 import { TicketForm } from './components/TicketForm';
 import { TicketList } from './components/TicketList';
 import { AdminStats } from './components/AdminStats';
 import { AdminFilter, FilterState } from './components/AdminFilter';
 import { ExtensionSuggestions } from './components/ExtensionSuggestions';
+import { EmojiRain } from './components/EmojiRain';
+import { RossmannLogo } from './components/RossmannLogo';
 
 const BASE_URL =
   import.meta.env.VITE_API_URL ??
@@ -29,6 +31,7 @@ export default function App() {
   const [resetDone, setResetDone] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [filter, setFilter] = useState<FilterState>({ status: 'all', priority: '', category: '' });
+  const [emojiRainActive, setEmojiRainActive] = useState(false);
 
   const load = async () => {
     try { setTickets(await api.listTickets()); } catch { /* offline */ }
@@ -57,36 +60,58 @@ export default function App() {
     setAnalyzing(false);
   };
 
+  /** Wird vom TicketForm aufgerufen, wenn ein Ticket erfolgreich erstellt wurde */
+  const handleTicketCreated = useCallback(async () => {
+    await load();
+    setEmojiRainActive(true);
+  }, []);
+
+  const handleEmojiRainDone = useCallback(() => {
+    setEmojiRainActive(false);
+  }, []);
+
   useEffect(() => { load(); }, []);
 
   const filteredTickets = applyFilter(tickets, filter);
   const userOpenTickets = tickets.filter(t => t.status === 'open');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    // Vollbreite: w-full statt max-w-3xl auf oberster Ebene
+    <div className="min-h-screen bg-gray-50 w-full">
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          {/* Logo */}
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
+      {/* Emoji-Regen-Overlay */}
+      <EmojiRain active={emojiRainActive} onDone={handleEmojiRainDone} />
+
+      {/* ── Rossmann Header (Bauchbinden-Stil) ────────────────────────────── */}
+      <header
+        data-testid="rossmann-header"
+        className="bg-white shadow-md sticky top-0 z-10 w-full"
+      >
+        {/* Gradient-Akzentlinie oben (Rossmann Motion-ID) */}
+        <div className="rossmann-gradient-bar w-full" data-testid="rossmann-gradient-bar" />
+
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-4">
+          {/* Rossmann-Logo */}
+          <div data-testid="rossmann-logo" className="flex-shrink-0">
+            <RossmannLogo className="h-10 w-auto" />
           </div>
 
-          <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-bold text-gray-900 leading-tight">Helpdesk Demo</h1>
+          {/* Titel-Bereich (Bauchbinden-Stil: weißer Container mit abgerundeten Ecken) */}
+          <div className="flex-1 min-w-0 bg-gray-50 rounded-xl px-4 py-2 border border-gray-100">
+            <h1 className="text-sm font-bold text-gray-900 leading-tight">
+              Helpdesk Demo
+            </h1>
             <p className="text-[10px] text-gray-400 leading-tight">Powered by Claude AI</p>
           </div>
 
           {/* View Toggle */}
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
             <button
               onClick={() => setView('user')}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                view === 'user' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+                view === 'user'
+                  ? 'bg-red-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               👤 Mitarbeiter
@@ -94,14 +119,16 @@ export default function App() {
             <button
               onClick={() => setView('admin')}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                view === 'admin' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+                view === 'admin'
+                  ? 'bg-red-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               🔧 IT-Admin
             </button>
           </div>
 
-          {/* Reset */}
+          {/* Reset-Button */}
           <button
             onClick={handleReset}
             disabled={resetting}
@@ -122,31 +149,39 @@ export default function App() {
             </span>
           </button>
         </div>
+
+        {/* Gradient-Akzentlinie unten */}
+        <div className="rossmann-gradient-bar w-full" />
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-6">
+      {/* ── Haupt-Inhalt: Vollbreite mit zentriertem Content-Bereich ───────── */}
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-screen-xl mx-auto">
 
         {/* ── USER PORTAL ── */}
         {view === 'user' && (
           <>
-            {/* Welcome Banner */}
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-2xl p-6 mb-6 text-white">
-              <h2 className="text-xl font-bold mb-1">Wie können wir helfen?</h2>
-              <p className="text-indigo-200 text-sm">
-                Störung melden, Zugang anfragen, Frage stellen — wir kümmern uns.
-                Unsere KI analysiert dein Ticket sofort.
-              </p>
-              {userOpenTickets.length > 0 && (
-                <div className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-lg px-3 py-1.5">
-                  <span className="w-2 h-2 rounded-full bg-orange-300 animate-pulse" />
-                  <span className="text-xs font-medium">
-                    {userOpenTickets.length} offene{userOpenTickets.length === 1 ? 's Ticket' : ' Tickets'}
-                  </span>
-                </div>
-              )}
+            {/* Welcome Banner im Rossmann-Stil: weißer Container, Rot-Gradient-Akzent */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+              {/* Farbverlauf-Akzentlinie oben */}
+              <div className="h-1 w-full bg-gradient-to-r from-red-600 via-orange-500 to-purple-600" />
+              <div className="p-6">
+                <h2 className="text-xl font-bold mb-1 text-gray-900">Wie können wir helfen?</h2>
+                <p className="text-gray-500 text-sm">
+                  Störung melden, Zugang anfragen, Frage stellen — wir kümmern uns.
+                  Unsere KI analysiert dein Ticket sofort.
+                </p>
+                {userOpenTickets.length > 0 && (
+                  <div className="mt-3 inline-flex items-center gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-xs font-medium text-red-700">
+                      {userOpenTickets.length} offene{userOpenTickets.length === 1 ? 's Ticket' : ' Tickets'}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <TicketForm onCreated={load} />
+            <TicketForm onCreated={handleTicketCreated} />
 
             {/* Open tickets for user */}
             {tickets.length > 0 && (
@@ -171,8 +206,8 @@ export default function App() {
                 <h2 className="text-lg font-bold text-gray-900">IT-Admin Dashboard</h2>
                 <p className="text-xs text-gray-500">Alle Tickets verwalten · KI-Analyse · Prioritäten</p>
               </div>
-              <span className="flex items-center gap-1.5 text-xs bg-indigo-50 text-indigo-700
-                border border-indigo-200 px-2.5 py-1 rounded-full font-medium">
+              <span className="flex items-center gap-1.5 text-xs bg-red-50 text-red-700
+                border border-red-200 px-2.5 py-1 rounded-full font-medium">
                 🔧 Admin-Ansicht
               </span>
             </div>
@@ -200,6 +235,17 @@ export default function App() {
           </>
         )}
       </main>
+
+      {/* ── Footer im Rossmann Bauchbinden-Stil ──────────────────────────── */}
+      <footer className="w-full mt-8 bg-white border-t border-gray-200">
+        <div className="rossmann-gradient-bar w-full" />
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between max-w-screen-xl mx-auto">
+          <RossmannLogo className="h-7 w-auto opacity-70" />
+          <p className="text-[10px] text-gray-400">
+            Helpdesk Demo · adesso Agentic SDLC
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

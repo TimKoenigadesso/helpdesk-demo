@@ -53,6 +53,9 @@ export function TicketForm({ onCreated }: Props) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Rossmann-Akzentlinie oben */}
+      <div className="h-1 w-full bg-gradient-to-r from-red-600 via-orange-500 to-purple-600" />
+
       <div className="px-6 pt-5 pb-4 border-b border-gray-100">
         <h2 className="text-base font-bold text-gray-900">Störung melden</h2>
         <p className="text-xs text-gray-500 mt-0.5">
@@ -71,8 +74,8 @@ export function TicketForm({ onCreated }: Props) {
               key={t.title}
               type="button"
               onClick={() => { setTitle(t.title); setDescription(t.description); }}
-              className="text-xs bg-gray-50 hover:bg-indigo-50 hover:text-indigo-700
-                border border-gray-200 hover:border-indigo-200 text-gray-600
+              className="text-xs bg-gray-50 hover:bg-red-50 hover:text-red-700
+                border border-gray-200 hover:border-red-200 text-gray-600
                 px-2.5 py-1 rounded-lg transition-colors"
             >
               {t.label}
@@ -89,7 +92,7 @@ export function TicketForm({ onCreated }: Props) {
           required
           data-testid="ticket-title"
           className="block w-full mb-3 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-            focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+            focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent
             placeholder-gray-400"
         />
         <textarea
@@ -100,7 +103,7 @@ export function TicketForm({ onCreated }: Props) {
           rows={3}
           data-testid="ticket-description"
           className="block w-full mb-3 px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-            focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+            focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent
             resize-none placeholder-gray-400"
         />
 
@@ -121,7 +124,7 @@ export function TicketForm({ onCreated }: Props) {
               onChange={(e) => setFirstName(e.target.value)}
               data-testid="ticket-first-name"
               className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-                focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent
                 placeholder-gray-400"
             />
           </div>
@@ -140,7 +143,7 @@ export function TicketForm({ onCreated }: Props) {
               onChange={(e) => setLastName(e.target.value)}
               data-testid="ticket-last-name"
               className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-                focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent
                 placeholder-gray-400"
             />
           </div>
@@ -160,7 +163,7 @@ export function TicketForm({ onCreated }: Props) {
             onChange={(e) => setPriority(e.target.value)}
             data-testid="ticket-priority"
             className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm
-              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+              focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent
               bg-white text-gray-700"
           >
             {PRIORITY_OPTIONS.map(opt => (
@@ -176,9 +179,9 @@ export function TicketForm({ onCreated }: Props) {
             type="submit"
             disabled={loading}
             data-testid="ticket-submit"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white
-              text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50
-              disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 text-white
+              text-sm font-semibold hover:bg-red-700 disabled:opacity-50
+              disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {loading ? (
               <>
@@ -191,7 +194,10 @@ export function TicketForm({ onCreated }: Props) {
             ) : 'Ticket einreichen'}
           </button>
           {done && (
-            <span className="text-sm text-green-600 font-medium">
+            <span
+              data-testid="ticket-success-message"
+              className="text-sm text-green-600 font-medium"
+            >
               ✓ Ticket erstellt — KI analysiert automatisch
             </span>
           )}

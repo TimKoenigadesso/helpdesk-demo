@@ -268,6 +268,84 @@ test.describe('Helpdesk App', () => {
     await expect(lastNameInput).not.toHaveAttribute('required');
   });
 
+  // ── UI-Feature-Tests (AGSDLC-40): Vollbreite, Emoji-Regen, Rossmann-Design ──
+
+  test('Rossmann-Logo ist im Header sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rossmann-logo')).toBeVisible();
+  });
+
+  test('Rossmann-Gradient-Bar ist im Header sichtbar', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rossmann-gradient-bar').first()).toBeVisible();
+  });
+
+  test('Rossmann-Header ist vorhanden', async ({ page }) => {
+    await page.goto(BASE);
+    await expect(page.getByTestId('rossmann-header')).toBeVisible();
+  });
+
+  test('Layout nutzt volle Fensterbreite ohne horizontalen Scrollbalken', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(BASE);
+    // Prüfen dass body kein horizontales Scrollen hat
+    const hasHorizontalScroll = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+    });
+    expect(hasHorizontalScroll).toBe(false);
+  });
+
+  test('Layout nutzt volle Fensterbreite auf mobiler Auflösung (320px)', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto(BASE);
+    const hasHorizontalScroll = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+    });
+    expect(hasHorizontalScroll).toBe(false);
+  });
+
+  test('Emoji-Regen erscheint nach erfolgreichem Absenden des Formulars', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Emoji Regen Test');
+    await page.getByTestId('ticket-description').fill('Dieser Test prüft den Emoji-Regen');
+    await page.getByTestId('ticket-submit').click();
+    // Emoji-Regen-Overlay sollte kurz nach dem Absenden erscheinen
+    await expect(page.getByTestId('emoji-rain')).toBeVisible({ timeout: 3000 });
+  });
+
+  test('Emoji-Regen verschwindet nach maximal 3 Sekunden automatisch', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Emoji Regen Timeout Test');
+    await page.getByTestId('ticket-description').fill('Animation soll nach 3 Sekunden enden');
+    await page.getByTestId('ticket-submit').click();
+    // Warten bis Emoji-Regen erscheint
+    await expect(page.getByTestId('emoji-rain')).toBeVisible({ timeout: 3000 });
+    // Und dann automatisch verschwinden (nach max. 3,5s)
+    await expect(page.getByTestId('emoji-rain')).not.toBeVisible({ timeout: 4000 });
+  });
+
+  test('Emoji-Regen erscheint nur einmalig pro Absenden ohne erneutes Absenden', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Einmaliger Emoji Test');
+    await page.getByTestId('ticket-description').fill('Emoji-Regen darf nur einmal kommen');
+    await page.getByTestId('ticket-submit').click();
+    // Emoji-Regen erscheint
+    await expect(page.getByTestId('emoji-rain')).toBeVisible({ timeout: 3000 });
+    // Nach Ende: nicht mehr im DOM aktiv
+    await expect(page.getByTestId('emoji-rain')).not.toBeVisible({ timeout: 4000 });
+    // Ohne erneutes Absenden erscheint er nicht wieder
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId('emoji-rain')).not.toBeVisible();
+  });
+
+  test('Erfolgsmeldung wird nach Absenden angezeigt', async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByTestId('ticket-title').fill('Erfolgsmeldung Test');
+    await page.getByTestId('ticket-description').fill('Prüfe Erfolgsmeldung nach Submit');
+    await page.getByTestId('ticket-submit').click();
+    await expect(page.getByTestId('ticket-success-message')).toBeVisible({ timeout: 5000 });
+  });
+
   test('Admin kann Kommentar löschen', async ({ page }) => {
     await page.goto(BASE);
 

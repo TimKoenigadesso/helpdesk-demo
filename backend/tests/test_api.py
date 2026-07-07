@@ -510,3 +510,66 @@ def test_all_four_priorities_with_names():
         assert data["priority"] == prio
         assert data["first_name"] == fname
         assert data["last_name"] == lname
+
+# ── UI-Feature-Tests (AGSDLC-40): Vollbreite, Emoji-Regen, Rossmann-Design ───
+# Diese Tests prüfen die API-Seite: Das Backend liefert alle nötigen Daten,
+# sodass das Frontend das Rossmann-Design korrekt rendern kann.
+
+def test_ticket_created_returns_complete_response_for_ui():
+    """Nach dem Absenden liefert die API alle Felder zurück, die das Frontend benötigt."""
+    r = client.post("/tickets", json={
+        "title": "UI Test Ticket",
+        "description": "Beschreibung für Vollbreiten-Test",
+        "priority": "high",
+        "first_name": "Max",
+        "last_name": "Mustermann",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    # Alle Felder müssen vorhanden sein (für Rossmann-Design-Rendering)
+    required_fields = ["id", "title", "description", "status", "category",
+                       "priority", "first_name", "last_name", "created_at", "updated_at"]
+    for field in required_fields:
+        assert field in data, f"Feld '{field}' fehlt in der API-Antwort"
+
+def test_ticket_list_returns_all_fields_for_fullwidth_ui():
+    """Ticket-Liste liefert alle Felder für die Vollbreiten-Darstellung."""
+    client.post("/tickets", json={"title": "Vollbreite Test", "description": "Test", "priority": "medium"})
+    r = client.get("/tickets")
+    assert r.status_code == 200
+    tickets = r.json()
+    assert len(tickets) >= 1
+    ticket = next((t for t in tickets if t["title"] == "Vollbreite Test"), None)
+    assert ticket is not None
+    # Priorität muss für Badge-Rendering vorhanden sein
+    assert ticket["priority"] == "medium"
+    # Status für Status-Badge
+    assert ticket["status"] == "open"
+    # Kategorie für CategoryTag-Komponente
+    assert "category" in ticket
+
+def test_create_ticket_minimal_for_emoji_rain_trigger():
+    """Minimal-Ticket (nur Pflichtfelder) kann erfolgreich erstellt werden — triggert Emoji-Regen im Frontend."""
+    r = client.post("/tickets", json={
+        "title": "Emoji Rain Test",
+        "description": "Dieses Ticket löst den Emoji-Regen aus",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["title"] == "Emoji Rain Test"
+    assert data["status"] == "open"
+    # id muss vorhanden sein, damit Frontend den Erfolg erkennt
+    assert isinstance(data["id"], int)
+    assert data["id"] > 0
+
+def test_ticket_status_open_after_creation():
+    """Neu erstelltes Ticket ist offen — wichtig für die offene-Tickets-Anzeige im Rossmann-Header."""
+    r = client.post("/tickets", json={"title": "Status Test", "description": "Desc"})
+    assert r.status_code == 201
+    assert r.json()["status"] == "open"
+
+def test_health_endpoint_for_ui_availability():
+    """Health-Endpoint muss erreichbar sein, damit das UI die Verbindung prüfen kann."""
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
